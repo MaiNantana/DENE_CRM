@@ -1,0 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-japandi-50: #fcfbf9;
+  --color-japandi-100: #f5f2eb;
+  --color-japandi-200: #e7e0d8; /* Light cream */
+  --color-japandi-300: #dad3cd;
+  --color-japandi-400: #c09e85; /* Warm tan */
+  --color-japandi-450: #a59385; /* Taupe */
+  --color-japandi-500: #91806c; /* Earthy brown */
+  --color-japandi-600: #7f6554; /* Dark brown */
+  --color-japandi-700: #5e6b58; /* Olive */
+  --color-japandi-800: #2c5243; /* Brand dark green (DENE) */
+  --color-japandi-900: #1b3329;
+  
+  --color-japandi-sage: #b9b99d; /* Light sage */
+  --color-japandi-rust: #ab6a55; /* Muted orange/rust */
+  --color-japandi-blue: #95a8ac; /* Muted blue */
+}
