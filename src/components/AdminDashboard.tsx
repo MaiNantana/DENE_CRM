@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Tag, Award, Settings, Search, Plus, TrendingUp, CreditCard, Activity, ArrowRight } from 'lucide-react';
+import { Users, Tag, Award, Settings, Search, Plus, TrendingUp, CreditCard, Activity, ArrowRight, Menu, X } from 'lucide-react';
 import { mockUsers, mockPromotions, mockHistory } from '../mockData';
 import { TierConfig } from '../types';
 
@@ -11,6 +11,7 @@ interface AdminDashboardProps {
 export default function AdminDashboard({ tiers, setTiers }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'promotions' | 'levels'>('overview');
   const [editingTiers, setEditingTiers] = useState(tiers);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Update original state when saving
   const handleSaveTiers = () => {
@@ -30,37 +31,53 @@ export default function AdminDashboard({ tiers, setTiers }: AdminDashboardProps)
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6 flex gap-6 h-full text-japandi-900">
+    <div className="max-w-7xl mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 h-[calc(100vh-64px)] md:h-full text-japandi-900 relative">
       
+      {/* Mobile Header / Hamburger */}
+      <div className="md:hidden flex items-center justify-between bg-white/80 backdrop-blur-xl border border-japandi-200 rounded-2xl p-4 shrink-0 z-20 shadow-sm">
+        <div className="text-sm font-bold text-japandi-900 uppercase tracking-wider">CRM System</div>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-1 rounded-lg bg-japandi-100 text-japandi-800 focus:outline-none focus:ring-2 focus:ring-japandi-400">
+          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+
+      {/* Sidebar Overlay (Mobile) */}
+      {isMobileMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/20 z-20 backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 bg-white/80 backdrop-blur-xl border border-japandi-200 rounded-3xl p-5 shrink-0 flex flex-col relative z-10 shadow-sm">
-        <div className="text-xs font-bold text-japandi-500 uppercase tracking-wider mb-6 px-3">CRM System</div>
+      <div className={`${isMobileMenuOpen ? 'flex absolute top-[76px] left-4 right-4' : 'hidden'} md:flex md:relative md:w-64 bg-white/80 backdrop-blur-xl border border-japandi-200 rounded-2xl md:rounded-3xl p-4 md:p-5 shrink-0 flex-col z-30 shadow-lg md:shadow-sm overflow-y-auto max-h-[70vh] md:max-h-none`}>
+        <div className="text-xs font-bold text-japandi-500 uppercase tracking-wider mb-2 md:mb-6 px-3 hidden md:block">CRM System</div>
         
-        <nav className="flex-1 space-y-2">
+        <nav className="flex flex-col gap-2 md:space-y-2 w-full">
           <button 
-            onClick={() => setActiveTab('overview')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${activeTab === 'overview' ? 'bg-japandi-800 text-white shadow-md' : 'text-japandi-600 hover:bg-japandi-100 border border-transparent'}`}
+            onClick={() => { setActiveTab('overview'); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-2 md:gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview' ? 'bg-japandi-800 text-white shadow-md' : 'text-japandi-600 hover:bg-japandi-100 border border-transparent'}`}
           >
             <Activity size={18} />
             Dashboard
           </button>
           <button 
-            onClick={() => setActiveTab('users')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${activeTab === 'users' ? 'bg-japandi-800 text-white shadow-md' : 'text-japandi-600 hover:bg-japandi-100 border border-transparent'}`}
+            onClick={() => { setActiveTab('users'); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-2 md:gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'users' ? 'bg-japandi-800 text-white shadow-md' : 'text-japandi-600 hover:bg-japandi-100 border border-transparent'}`}
           >
             <Users size={18} />
             ลูกค้า & สมาชิก
           </button>
           <button 
-            onClick={() => setActiveTab('promotions')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${activeTab === 'promotions' ? 'bg-japandi-800 text-white shadow-md' : 'text-japandi-600 hover:bg-japandi-100 border border-transparent'}`}
+            onClick={() => { setActiveTab('promotions'); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-2 md:gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'promotions' ? 'bg-japandi-800 text-white shadow-md' : 'text-japandi-600 hover:bg-japandi-100 border border-transparent'}`}
           >
             <Tag size={18} />
             จัดการโปรโมชั่น
           </button>
           <button 
-            onClick={() => setActiveTab('levels')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${activeTab === 'levels' ? 'bg-japandi-800 text-white shadow-md' : 'text-japandi-600 hover:bg-japandi-100 border border-transparent'}`}
+            onClick={() => { setActiveTab('levels'); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-2 md:gap-3 px-3 py-3 md:py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'levels' ? 'bg-japandi-800 text-white shadow-md' : 'text-japandi-600 hover:bg-japandi-100 border border-transparent'}`}
           >
             <Award size={18} />
             ตั้งค่า Loyalty Level
@@ -69,45 +86,45 @@ export default function AdminDashboard({ tiers, setTiers }: AdminDashboardProps)
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 bg-white/80 backdrop-blur-xl border border-japandi-200 rounded-3xl overflow-hidden flex flex-col relative z-10 shadow-sm">
+      <div className="flex-1 bg-white/80 backdrop-blur-xl border border-japandi-200 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col relative z-10 shadow-sm min-h-0">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-japandi-200 flex justify-between items-center bg-japandi-50/50">
+        <div className="px-4 py-4 md:px-6 md:py-5 border-b border-japandi-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-japandi-50/50">
           <h1 className="text-xl font-bold text-japandi-900">
             {activeTab === 'overview' && 'ภาพรวมระบบ (Dashboard)'}
             {activeTab === 'users' && 'รายชื่อลูกค้า (Customers)'}
             {activeTab === 'promotions' && 'จัดการโปรโมชั่น (Promotions)'}
             {activeTab === 'levels' && 'ตั้งค่าระดับสมาชิก (Loyalty Tiers)'}
           </h1>
-          <div className="flex gap-3">
+          <div className="flex w-full sm:w-auto gap-3">
             {activeTab === 'users' && (
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-japandi-450" />
                 <input 
                   type="text" 
                   placeholder="ค้นหา Line ID..." 
-                  className="pl-9 pr-4 py-2 bg-white border border-japandi-300 rounded-xl text-sm text-japandi-900 focus:outline-none focus:ring-2 focus:ring-japandi-400 w-64 placeholder-japandi-450 shadow-sm"
+                  className="pl-9 pr-4 py-2 bg-white border border-japandi-300 rounded-xl text-sm text-japandi-900 focus:outline-none focus:ring-2 focus:ring-japandi-400 w-full sm:w-64 placeholder-japandi-450 shadow-sm"
                 />
               </div>
             )}
             {activeTab === 'promotions' && (
-              <button className="flex items-center gap-2 bg-japandi-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-japandi-900 transition-colors shadow-md">
+              <button className="flex items-center justify-center w-full sm:w-auto gap-2 bg-japandi-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-japandi-900 transition-colors shadow-md">
                 <Plus size={16} />
-                สร้างโปรโมชั่นใหม่
+                <span className="whitespace-nowrap">สร้างโปรโมชั่นใหม่</span>
               </button>
             )}
             {activeTab === 'levels' && (
               <button 
                 onClick={handleSaveTiers}
-                className="flex items-center gap-2 bg-japandi-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-japandi-900 transition-colors shadow-md"
+                className="flex items-center justify-center w-full sm:w-auto gap-2 bg-japandi-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-japandi-900 transition-colors shadow-md"
               >
-                บันทึกการตั้งค่า
+                <span className="whitespace-nowrap">บันทึกการตั้งค่า</span>
               </button>
             )}
           </div>
         </div>
 
         {/* List Content */}
-        <div className="flex-1 overflow-auto p-6 bg-japandi-50/30">
+        <div className="flex-1 overflow-auto p-4 md:p-6 bg-japandi-50/30">
           {activeTab === 'overview' && (
             <div className="space-y-6">
               {/* Stats Row */}
@@ -190,8 +207,8 @@ export default function AdminDashboard({ tiers, setTiers }: AdminDashboardProps)
           )}
 
           {activeTab === 'users' && (
-            <div className="border border-japandi-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-              <table className="w-full text-left text-sm">
+            <div className="border border-japandi-200 rounded-2xl overflow-x-auto bg-white shadow-sm">
+              <table className="w-full text-left text-sm min-w-[600px]">
                 <thead className="bg-japandi-50 text-japandi-600 border-b border-japandi-200 uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="px-6 py-4 font-bold">ชื่อลูกค้า / Line</th>
