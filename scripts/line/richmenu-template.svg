@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="1686" viewBox="0 0 2500 1686">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#253728"/>
+      <stop offset="55%" stop-color="#2f4330"/>
+      <stop offset="100%" stop-color="#1f2d21"/>
+    </linearGradient>
+    <linearGradient id="panelLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f4efe6" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#f4efe6" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="panelCenter" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f4efe6" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#f4efe6" stop-opacity="0.03"/>
+    </linearGradient>
+    <linearGradient id="panelRight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f4efe6" stop-opacity="0.11"/>
+      <stop offset="100%" stop-color="#f4efe6" stop-opacity="0.04"/>
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .brand {
+        font-family: "Noto Sans Thai", "Tahoma", "Arial", sans-serif;
+        font-weight: 700;
+        fill: #f7f1e8;
+        letter-spacing: 0.28em;
+      }
+      .title {
+        font-family: "Noto Sans Thai", "Tahoma", "Arial", sans-serif;
+        font-weight: 700;
+        fill: #fffdf7;
+      }
+      .sub {
+        font-family: "Noto Sans Thai", "Tahoma", "Arial", sans-serif;
+        font-weight: 400;
+        fill: #e8dfcf;
+        opacity: 0.88;
+      }
+      .label {
+        font-family: "Noto Sans Thai", "Tahoma", "Arial", sans-serif;
+        font-weight: 700;
+        fill: #f7f1e8;
+        opacity: 0.72;
+        letter-spacing: 0.18em;
+      }
+    </style>
+  </defs>
+
+  <rect width="2500" height="1686" fill="url(#bg)"/>
+  <circle cx="2300" cy="260" r="240" fill="#f4efe6" opacity="0.06"/>
+  <circle cx="180" cy="1480" r="260" fill="#f4efe6" opacity="0.05"/>
+  <circle cx="540" cy="240" r="120" fill="#f4efe6" opacity="0.05"/>
+  <circle cx="1940" cy="1330" r="180" fill="#f4efe6" opacity="0.04"/>
+
+  <rect x="0" y="0" width="833" height="1686" fill="url(#panelLeft)" filter="url(#softShadow)"/>
+  <rect x="833" y="0" width="834" height="1686" fill="url(#panelCenter)" filter="url(#softShadow)"/>
+  <rect x="1667" y="0" width="833" height="1686" fill="url(#panelRight)" filter="url(#softShadow)"/>
+
+  <line x1="833" y1="0" x2="833" y2="1686" stroke="#ffffff18" stroke-width="3"/>
+  <line x1="1667" y1="0" x2="1667" y2="1686" stroke="#ffffff18" stroke-width="3"/>
+
+  <text x="1250" y="120" class="brand" font-size="42" text-anchor="middle">DENE CRM</text>
+  <text x="1250" y="170" class="sub" font-size="26" text-anchor="middle">เปิดเมนูสมาชิกได้ในครั้งเดียว</text>
+
+  <g transform="translate(0 0)">
+    <rect x="56" y="280" width="721" height="1020" rx="54" fill="#f4efe6" opacity="0.04" stroke="#f4efe6" stroke-opacity="0.16"/>
+    <text x="416" y="360" class="label" font-size="22" text-anchor="middle">01</text>
+    <circle cx="416" cy="560" r="132" fill="none" stroke="#f4efe6" stroke-opacity="0.25" stroke-width="18"/>
+    <circle cx="416" cy="510" r="56" fill="none" stroke="#f4efe6" stroke-width="16"/>
+    <path d="M310 710c22-92 84-144 106-144s84 52 106 144" fill="none" stroke="#f4efe6" stroke-width="16" stroke-linecap="round"/>
+    <path d="M520 438h72v72M556 402v144" fill="none" stroke="#d9d0bf" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="416" y="930" class="title" font-size="78" text-anchor="middle">สมัครสมาชิก</text>
+    <text x="416" y="1002" class="sub" font-size="34" text-anchor="middle">เปิดฟอร์มสมัครสมาชิก</text>
+    <path d="M240 1112h352" stroke="#f4efe6" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
+    <text x="416" y="1188" class="sub" font-size="25" text-anchor="middle">เริ่มใช้งาน DENE CRM</text>
+  </g>
+
+  <g transform="translate(833 0)">
+    <rect x="56" y="280" width="722" height="1020" rx="54" fill="#f4efe6" opacity="0.05" stroke="#f4efe6" stroke-opacity="0.16"/>
+    <text x="417" y="360" class="label" font-size="22" text-anchor="middle">02</text>
+    <rect x="272" y="408" width="290" height="400" rx="44" fill="none" stroke="#f4efe6" stroke-opacity="0.28" stroke-width="18"/>
+    <path d="M417 500v122" fill="none" stroke="#f4efe6" stroke-width="18" stroke-linecap="round"/>
+    <path d="M367 560l50-50 50 50" fill="none" stroke="#f4efe6" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="326" y="660" width="182" height="58" rx="22" fill="#f4efe6" opacity="0.12"/>
+    <path d="M332 452h170" stroke="#d9d0bf" stroke-opacity="0.75" stroke-width="14" stroke-linecap="round"/>
+    <path d="M332 720h170" stroke="#d9d0bf" stroke-opacity="0.65" stroke-width="14" stroke-linecap="round"/>
+    <text x="417" y="930" class="title" font-size="78" text-anchor="middle">ส่งสลิป</text>
+    <text x="417" y="1002" class="sub" font-size="34" text-anchor="middle">อัปโหลดหลักฐานการโอน</text>
+    <path d="M241 1112h352" stroke="#f4efe6" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
+    <text x="417" y="1188" class="sub" font-size="25" text-anchor="middle">รอตรวจสอบจากแอดมิน</text>
+  </g>
+
+  <g transform="translate(1667 0)">
+    <rect x="56" y="280" width="721" height="1020" rx="54" fill="#f4efe6" opacity="0.05" stroke="#f4efe6" stroke-opacity="0.16"/>
+    <text x="417" y="360" class="label" font-size="22" text-anchor="middle">03</text>
+    <rect x="250" y="414" width="334" height="300" rx="38" fill="none" stroke="#f4efe6" stroke-opacity="0.28" stroke-width="18"/>
+    <path d="M278 486h278M278 548h220M278 610h170" stroke="#f4efe6" stroke-width="14" stroke-linecap="round" stroke-opacity="0.9"/>
+    <circle cx="545" cy="610" r="40" fill="none" stroke="#d9d0bf" stroke-width="16"/>
+    <path d="M525 610h40M545 590v40" stroke="#d9d0bf" stroke-width="14" stroke-linecap="round"/>
+    <rect x="342" y="772" width="150" height="48" rx="18" fill="#f4efe6" opacity="0.12"/>
+    <text x="417" y="930" class="title" font-size="78" text-anchor="middle">บัตรสมาชิก</text>
+    <text x="417" y="1002" class="sub" font-size="34" text-anchor="middle">ดูแต้มและระดับสมาชิก</text>
+    <path d="M241 1112h352" stroke="#f4efe6" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
+    <text x="417" y="1188" class="sub" font-size="25" text-anchor="middle">เช็กสิทธิ์ของคุณได้ทันที</text>
+  </g>
+</svg>

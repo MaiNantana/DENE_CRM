@@ -1,78 +1,109 @@
 # Deployment Notes for the Next Codex
 
 Project: `DENE_CRM`
-Target URL: `http://crm.serveftp.com/`
+Target URL: `http://crm.serveftp.com/admin`
 Target host: `hr.iexcellence.cloud`
+Target IP: `13.55.200.177`
 Target folder on server: `C:\Program Files\iisnode\www\crm`
 
-## What the app is
+---
 
-- This is a Vite + React frontend.
-- There is no backend service in this repo.
-- Deploying the built `dist/` folder is enough for static hosting.
-- The app does not use a client-side router, so IIS rewrite rules are not currently required.
+## วิธี Deploy (ปกติ — แนะนำ)
 
-## Verified locally
+**รันจาก bash เท่านั้น ห้ามรันจาก PowerShell โดยตรง**
 
-- `npm install` completed successfully.
-- `npm run lint` passed.
-- `npm run build` passed and produced a `dist/` folder.
+```bash
+cd /d/dev/aruns/crm/DENE_CRM
+DEPLOY_PASSWORD='<server password>' bash scripts/deploy/prod_windows_static.sh
+```
 
-Build output currently includes:
+Script จะทำครบ: build → upload ผ่าน SSH → backup เดิม → deploy `dist/` + `server/` + `web.config` ไปที่ IIS → ตรวจสอบ URL
 
+ตรวจสอบอย่างเดียว (ไม่ deploy):
+```bash
+DEPLOY_PASSWORD='<server password>' bash scripts/deploy/prod_windows_static.sh --check-only
+```
+
+Deploy โดยไม่ build ใหม่ (ใช้ dist ที่มีอยู่):
+```bash
+DEPLOY_PASSWORD='<server password>' bash scripts/deploy/prod_windows_static.sh --skip-build
+```
+
+---
+
+## สิ่งที่ app เป็น
+
+- Vite + React frontend + Node.js backend ผ่าน iisnode
+- Deploy ทั้ง `dist/` และ `server/` พร้อม `web.config`
+- ใช้ client-side router สำหรับ `/admin` และ `/liff/*`
+- IIS ต้อง rewrite path ที่ไม่ใช่ `/api/*` และไม่ใช่ไฟล์จริงไปที่ `index.html`
+
+Build output:
 - `dist/index.html`
 - `dist/assets/index-*.css`
 - `dist/assets/index-*.js`
 
-## Network / access findings
-
-- DNS resolves `hr.iexcellence.cloud` as a CNAME to `iexcellence.cloud`, which currently resolves to `13.55.200.177`.
-- Open ports from this environment:
-  - `22` open
-  - `80` open
-  - `443` open
-  - `3389` open
-- Closed/unavailable from this environment:
-  - `21` closed
-  - `445` closed
-  - `5985` closed
-  - `5986` closed
-- SMB admin share access to `\\\\hr.iexcellence.cloud\\c$` failed.
-- WinRM failed.
-- SSH password auth failed with the provided credentials when trying `Administrator`.
-- No CLI RDP client is installed in this environment (`xfreerdp`, `rdesktop`, `remmina` are not present).
+---
 
 ## Credential notes
 
-- The user provided:
-  - username: `Administrator`
-  - password: provided in chat
-- Do not persist the password in repo files.
+- username: `Administrator`
+- password: รับจาก user ใน chat — **ห้าม commit ลงไฟล์**
 
-## Most likely working deployment path
+---
 
-RDP looks like the most plausible path because port `3389` is open and the target folder is clearly a Windows IIS path.
+## ข้อควรระวัง: SSH จาก PowerShell
 
-If you have a GUI-capable environment or an RDP client, try:
+รันสคริปต์ผ่าน `$env:DEPLOY_PASSWORD = "..." ; bash scripts/...` ใน PowerShell แล้ว SSH ค้าง
+สาเหตุ: PowerShell set `DISPLAY=:0` ไม่ได้ผลและ `setsid` ไม่มีใน environment นี้
+**แก้:** รัน bash โดยตรงจาก Git Bash terminal หรือบอก Codex ให้ใช้ Bash tool (ไม่ใช่ PowerShell tool)
 
-1. Connect to `hr.iexcellence.cloud:3389`
-2. Log in as `Administrator`
-3. Open `C:\Program Files\iisnode\www\crm`
-4. Copy the contents of `dist/` into that folder
-5. Make sure `index.html` is at the folder root, not inside another nested `dist` folder
+---
 
-## If RDP is not usable
+## RDP Fallback (ถ้า SSH ใช้ไม่ได้)
 
-If login fails on RDP too, the next agent should ask for one of these:
+1. บันทึก credentials และเปิด RDP:
+   ```powershell
+   cmdkey /generic:"13.55.200.177" /user:"Administrator" /pass:"<password>"
+   mstsc "d:\dev\aruns\crm\DENE_CRM\crm-deploy.rdp"
+   ```
+2. บน server — เปิด PowerShell as Administrator แล้วรัน:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File "\\tsclient\D\dev\aruns\crm\DENE_CRM\crm-deploy-package\deploy_crm_zip_on_server.ps1"
+   ```
+   (`\\tsclient\D` = D: drive ของเครื่อง local ที่ redirect เข้า RDP session)
+3. ลบ credentials หลังเสร็จ:
+   ```powershell
+   cmdkey /delete:"13.55.200.177"
+   ```
+4. เช็ค `http://crm.serveftp.com/`
 
-- a working SSH/SFTP username that actually authenticates on port `22`
-- an FTP/SFTP account if the host is configured that way
-- confirmation that the `Administrator` password is correct for RDP on this server
+ก่อน RDP ต้องเตรียม deploy package ให้ทันสมัยก่อน:
+```bash
+npm run build
+# จากนั้น PowerShell:
+Compress-Archive -Path "dist\*" -DestinationPath "crm-dist.zip" -Force
+Copy-Item "crm-dist.zip" "crm-deploy-package\crm-dist.zip" -Force
+# ถ้า backend เปลี่ยนด้วย ให้คัดลอกโฟลเดอร์ server และ web.config เข้า package ด้วย
+Copy-Item "server" "crm-deploy-package\server" -Recurse -Force
+Copy-Item "web.config" "crm-deploy-package\web.config" -Force
+Compress-Archive -Path "crm-deploy-package\*" -DestinationPath "crm-deploy-package.zip" -Force
+```
 
-## Practical deployment checklist
+---
 
-1. Re-run `npm run build` if source files change.
-2. Upload only the `dist/` contents.
-3. Verify `http://crm.serveftp.com/` loads the built page.
-4. If IIS serves a blank page, confirm the `index.html` and `/assets/*` files were copied to the correct web root.
+## Network / Access
 
+- `crm.serveftp.com` → `hr.iexcellence.cloud` → `iexcellence.cloud` → `13.55.200.177`
+- Port ที่ใช้งานได้: `22` (SSH), `80`, `443`, `3389` (RDP)
+- Port ที่ปิด: `21`, `445`, `5985`, `5986`
+
+---
+
+## Checklist หลัง Deploy
+
+- [ ] `http://crm.serveftp.com/` redirect ไป `/admin`
+- [ ] `http://crm.serveftp.com/admin` โหลดหน้าแอดมินได้
+- [ ] `http://crm.serveftp.com/liff` เปิดหน้า LIFF gateway ได้
+- [ ] `index.html` อยู่ที่ root ของ `C:\Program Files\iisnode\www\crm` (ไม่ใช่ใน subfolder)
+- [ ] `/assets/*.js` และ `/assets/*.css` โหลดได้

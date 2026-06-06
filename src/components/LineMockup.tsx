@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, Menu, Phone, CreditCard, Camera, History, Ticket, X, Search, Gift, ShieldCheck, Mail, LogOut, Download, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { mockUsers, mockPromotions, mockHistory } from '../mockData';
+import { DEMO_LINE_ID } from '../constants';
 import { ChatMessage, TierConfig } from '../types';
 import { getContrastColor } from '../utils';
 
@@ -10,8 +11,8 @@ interface LineMockupProps {
 }
 
 export default function LineMockup({ tiers }: LineMockupProps) {
-  // Use first user as the simulated current user
-  const currentUser = mockUsers[0];
+  // Use the demo customer as the simulated current user
+  const currentUser = mockUsers.find(u => u.lineId === DEMO_LINE_ID) || mockUsers[0];
   const [points, setPoints] = useState(currentUser.points);
   
   const currentTierConfig = tiers.find(t => t.name === currentUser.tier) || tiers[0];
@@ -25,7 +26,7 @@ export default function LineMockup({ tiers }: LineMockupProps) {
       id: 'm1',
       sender: 'bot',
       type: 'text',
-      text: 'สวัสดีค่ะ ยินดีต้อนรับสู่ระบบสมาชิกร้าน DENE ค่ะ 🎉\n\nคุณสามารถกดที่เมนูด้านล่างเพื่อดูบัตรสมาชิก แลกของรางวัล หรือส่งรูปสลิปเพื่อสะสมแต้มได้เลยค่ะ',
+      text: `สวัสดีค่ะ คุณ ${currentUser.name} ยินดีต้อนรับสู่ระบบสมาชิกร้าน DENE ค่ะ 🎉\n\nคุณสามารถกดที่เมนูด้านล่างเพื่อดูบัตรสมาชิก แลกของรางวัล หรือส่งรูปสลิปเพื่อสะสมแต้มได้เลยค่ะ`,
       timestamp: '10:00 AM'
     }
   ]);

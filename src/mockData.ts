@@ -1,60 +1,65 @@
 import { User, Promotion, OrderHistory, TierConfig } from './types';
+import { DEMO_LINE_ID } from './constants';
 
 export const mockTiers: TierConfig[] = [
-  { id: 't1', name: 'Standard', minPoints: 0, benefits: ['สะสมแต้มทุกการสั่งซื้อ'], multiplier: 1, color: '#b9b99d' },
-  { id: 't2', name: 'Silver', minPoints: 500, benefits: ['รับคะแนน x1.2', 'คูปองวันเกิด'], multiplier: 1.2, color: '#dad3cd' },
-  { id: 't3', name: 'Gold', minPoints: 2000, benefits: ['รับคะแนน x1.5', 'รับส่วนลด 5%', 'ของขวัญปีใหม่'], multiplier: 1.5, color: '#c09e85' },
-  { id: 't4', name: 'Platinum', minPoints: 5000, benefits: ['รับคะแนน x2', 'รับส่วนลด 10%', 'ของขวัญพิเศษ'], multiplier: 2, color: '#2c5243' },
+  { id: 't1', name: 'Standard', minPoints: 0, bahtPerPoint: 10, discountPercent: 0, durationDays: 365, benefits: ['สะสมแต้มทุกการสั่งซื้อ'], multiplier: 1, color: '#b9b99d' },
+  { id: 't2', name: 'Silver', minPoints: 500, bahtPerPoint: 10, discountPercent: 0, durationDays: 365, benefits: ['คูปองวันเกิด'], multiplier: 1.2, color: '#dad3cd' },
+  { id: 't3', name: 'Gold', minPoints: 2000, bahtPerPoint: 10, discountPercent: 5, durationDays: 365, benefits: ['ของขวัญปีใหม่'], multiplier: 1.5, color: '#c09e85' },
+  { id: 't4', name: 'Platinum', minPoints: 5000, bahtPerPoint: 10, discountPercent: 10, durationDays: 365, benefits: ['ของขวัญพิเศษ'], multiplier: 2, color: '#2c5243' },
 ];
 
 export const mockUsers: User[] = [
   {
     id: 'u1',
-    lineId: '@customer_a',
-    name: 'Somchai Jaidee',
-    phone: '081-123-4567',
-    email: 'somchai.j@example.com',
-    avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026024d',
-    tier: 'Gold',
-    points: 1250,
-    joinedAt: '2023-01-15',
-    totalSpent: 15400
+    lineId: DEMO_LINE_ID,
+    name: 'N B',
+    phone: '0999999999',
+    email: '999@gmail.com',
+    avatar: 'https://i.pravatar.cc/150?u=mai.nantana',
+    tier: 'Standard',
+    points: 524,
+    joinedAt: '2026-05-28',
+    totalSpent: 240,
+    isActive: true
   },
   {
     id: 'u2',
-    lineId: '@wanida_b',
-    name: 'Wanida S.',
-    phone: '082-987-6543',
+    lineId: '@wanida_final',
+    name: 'วาณิดา สุขใจ',
+    phone: '082-555-6666',
     email: 'wanida.s@test.com',
     avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
     tier: 'Standard',
-    points: 120,
+    points: 0,
     joinedAt: '2023-11-20',
-    totalSpent: 1200
+    totalSpent: 0,
+    isActive: true
   },
   {
     id: 'u3',
-    lineId: '@kritsada99',
-    name: 'Kritsada M.',
-    phone: '093-555-7777',
+    lineId: '@utf8_test_003',
+    name: 'สมชาย ใจดี',
+    phone: '087-111-2222',
     email: 'kritsada99@domain.com',
     avatar: 'https://i.pravatar.cc/150?u=a04258114e29026702d',
-    tier: 'Platinum',
-    points: 5400,
+    tier: 'Standard',
+    points: 0,
     joinedAt: '2022-06-10',
-    totalSpent: 85000
+    totalSpent: 0,
+    isActive: true
   },
   {
     id: 'u4',
-    lineId: '@nattapong_z',
-    name: 'Nattapong K.',
-    phone: '084-222-3333',
+    lineId: '@new_user_001',
+    name: 'New User',
+    phone: '088-111-2222',
     email: 'nattapong.k@zmail.com',
     avatar: 'https://i.pravatar.cc/150?u=a04258114e29026703d',
-    tier: 'Silver',
-    points: 650,
+    tier: 'Standard',
+    points: 0,
     joinedAt: '2023-05-05',
-    totalSpent: 6500
+    totalSpent: 0,
+    isActive: true
   }
 ];
 
@@ -65,7 +70,5 @@ export const mockPromotions: Promotion[] = [
 ];
 
 export const mockHistory: OrderHistory[] = [
-  { id: 'ord-001', date: '2023-12-10 14:30', amount: 1500, pointsEarned: 150, status: 'approved' },
-  { id: 'ord-002', date: '2023-12-15 09:15', amount: 850, pointsEarned: 85, status: 'approved' },
-  { id: 'ord-003', date: '2023-12-20 18:45', amount: 2100, pointsEarned: 210, status: 'pending' },
+  { id: 'ord-1780075392922', date: '2026-05-29 00:23', amount: 240, pointsEarned: 24, status: 'approved' },
 ];
