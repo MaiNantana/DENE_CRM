@@ -28,8 +28,13 @@ const TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || process.argv[2];
 const LIFF_ID = process.env.VITE_LIFF_ID || process.env.LIFF_ID || process.argv[3] || '';
 const BASE_URL = (process.env.LIFF_BASE_URL || process.env.APP_URL || 'http://crm.serveftp.com').replace(/\/$/, '');
 const LIFF_WEB_PATH = '/liff';
-const PNG_PATH = path.join(__dirname, 'richmenu.png');
-const SVG_PATH = path.join(__dirname, 'richmenu-template.svg');
+// Brand is parameterised so the same script builds menus for each company (DENE / KEFERA / ...).
+const BRAND = process.env.RICHMENU_BRAND || 'DENE CRM';
+const MENU_NAME = process.env.RICHMENU_NAME || `${BRAND} Menu`;
+const BAR_TEXT = process.env.RICHMENU_BAR_TEXT || 'เมนูสมาชิก';
+const SLUG = (process.env.RICHMENU_SLUG || 'dene').toLowerCase().replace(/[^a-z0-9]/g, '');
+const PNG_PATH = path.join(__dirname, `richmenu-${SLUG}.png`);
+const SVG_PATH = path.join(__dirname, `richmenu-${SLUG}.svg`);
 
 if (!TOKEN) {
   console.error('❌  กรุณาตั้งค่า LINE_CHANNEL_ACCESS_TOKEN\n');
@@ -52,8 +57,8 @@ function buildActionUrl(route) {
 const RICHMENU = {
   size: { width: 2500, height: 1686 },
   selected: true,
-  name: 'DENE CRM Menu',
-  chatBarText: 'เมนูสมาชิก DENE',
+  name: MENU_NAME,
+  chatBarText: BAR_TEXT,
   areas: [
     {
       // ช่องซ้าย — สมัครสมาชิก
@@ -171,7 +176,7 @@ function buildRichMenuSvg() {
   <line x1="833" y1="0" x2="833" y2="1686" stroke="#ffffff18" stroke-width="3"/>
   <line x1="1667" y1="0" x2="1667" y2="1686" stroke="#ffffff18" stroke-width="3"/>
 
-  <text x="1250" y="120" class="brand" font-size="42" text-anchor="middle">DENE CRM</text>
+  <text x="1250" y="120" class="brand" font-size="42" text-anchor="middle">${BRAND}</text>
   <text x="1250" y="170" class="sub" font-size="26" text-anchor="middle">เปิดเมนูสมาชิกได้ในครั้งเดียว</text>
 
   <g transform="translate(0 0)">

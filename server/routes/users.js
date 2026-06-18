@@ -10,6 +10,27 @@ function getCompanyId(req) {
   return Number(req.company?.id || 1) || 1;
 }
 
+function getCompanyCodePrefix(companyId) {
+  return companyId === 2 ? 'KEFERA' : 'DENE';
+}
+
+function parseCustomerCodeSequence(customerCode) {
+  if (typeof customerCode !== 'string') return 0;
+  const match = customerCode.trim().match(/-(\d+)$/);
+  return match ? parseInt(match[1], 10) || 0 : 0;
+}
+
+async function generateCustomerCode(companyId) {
+  const prefix = getCompanyCodePrefix(companyId);
+  const [rows] = await db.query(
+    'SELECT customer_code FROM users WHERE company_id=? AND customer_code LIKE ? ORDER BY customer_code DESC LIMIT 1',
+    [companyId, `${prefix}-%`]
+  );
+  const lastCode = rows[0]?.customer_code || '';
+  const nextSeq = parseCustomerCodeSequence(lastCode) + 1;
+  return `${prefix}-${String(nextSeq).padStart(6, '0')}`;
+}
+
 function normalizeBirthday(value) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -44,15 +65,17 @@ router.get('/', aw(async (req, res) => {
   const search   = req.query.search  ? `%${req.query.search}%` : null;
   const showAll  = req.query.showAll === '1';   // default: active only
   const activeFilter = showAll ? '' : ' AND is_active=1';
+  // Non-members (walk-in / guest slip uploads) are never listed as members.
+  const memberFilter = ' AND is_member=1';
   const companyId = getCompanyId(req);
 
   const [rows] = search
     ? await db.query(
-        `SELECT * FROM users WHERE company_id=? AND (line_id LIKE ? OR name LIKE ?)${activeFilter} ORDER BY joined_at DESC`,
-        [companyId, search, search]
+        `SELECT * FROM users WHERE company_id=? AND (customer_code LIKE ? OR line_id LIKE ? OR name LIKE ?)${activeFilter}${memberFilter} ORDER BY joined_at DESC`,
+        [companyId, search, search, search]
       )
     : await db.query(
-      `SELECT * FROM users WHERE company_id=?${activeFilter} ORDER BY joined_at DESC`,
+      `SELECT * FROM users WHERE company_id=?${activeFilter}${memberFilter} ORDER BY joined_at DESC`,
       [companyId]
       );
   const refreshedRows = await Promise.all(rows.map(async row => {
@@ -84,12 +107,46 @@ router.post('/', aw(async (req, res) => {
   if (typeof birthday === 'string' && birthday.trim() && !normalizedBirthday) {
     return res.status(400).json({ error: 'Invalid birthday format. Use dd/MM/yyyy or yyyy-MM-dd.' });
   }
-  await db.query(
-    'INSERT INTO users (company_id, line_id, name, phone, email, avatar, birthday) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [companyId, lineId, name, phone || null, email || null, avatar || null, normalizedBirthday || null]
+
+  const [[duplicateLineId]] = await db.query(
+    'SELECT id, is_member FROM users WHERE company_id=? AND line_id=? LIMIT 1',
+    [companyId, lineId]
   );
-  const [[user]] = await db.query('SELECT * FROM users WHERE line_id=? AND company_id=?', [lineId, companyId]);
-  res.status(201).json(user);
+  if (duplicateLineId) {
+    // A guest (walk-in) record already exists for this LINE id -> upgrade it to a real member.
+    if (Number(duplicateLineId.is_member) === 0) {
+      await db.query(
+        'UPDATE users SET name=?, phone=?, email=?, avatar=?, birthday=?, is_member=1, joined_at=NOW() WHERE id=? AND company_id=?',
+        [name, phone || null, email || null, avatar || null, normalizedBirthday || null, duplicateLineId.id, companyId]
+      );
+      const [[upgraded]] = await db.query('SELECT * FROM users WHERE id=? AND company_id=?', [duplicateLineId.id, companyId]);
+      return res.status(201).json(upgraded);
+    }
+    return res.status(409).json({ error: 'Line ID already exists' });
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const customerCode = await generateCustomerCode(companyId);
+    try {
+      await db.query(
+        'INSERT INTO users (company_id, customer_code, line_id, name, phone, email, avatar, birthday) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [companyId, customerCode, lineId, name, phone || null, email || null, avatar || null, normalizedBirthday || null]
+      );
+      const [[user]] = await db.query('SELECT * FROM users WHERE line_id=? AND company_id=?', [lineId, companyId]);
+      return res.status(201).json(user);
+    } catch (err) {
+      const message = String(err?.sqlMessage || '');
+      if (err?.code === 'ER_DUP_ENTRY' && /customer_code/i.test(message)) {
+        continue;
+      }
+      if (err?.code === 'ER_DUP_ENTRY' && /line_id/i.test(message)) {
+        return res.status(409).json({ error: 'Line ID already exists' });
+      }
+      throw err;
+    }
+  }
+
+  return res.status(500).json({ error: 'ไม่สามารถสร้างรหัสลูกค้าได้ กรุณาลองใหม่' });
 }));
 
 // PUT /api/users/:id  — แก้ไขข้อมูล (รวม tier, points, total_spent)
@@ -184,6 +241,18 @@ router.patch('/:id/status', aw(async (req, res) => {
   const [[user]] = await db.query('SELECT * FROM users WHERE id=? AND company_id=?', [req.params.id, companyId]);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
+}));
+
+router.delete('/:id', aw(async (req, res) => {
+  const companyId = getCompanyId(req);
+  const [[user]] = await db.query(
+    'SELECT id, name, customer_code FROM users WHERE id=? AND company_id=?',
+    [req.params.id, companyId]
+  );
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  await db.query('DELETE FROM users WHERE id=? AND company_id=?', [req.params.id, companyId]);
+  res.json({ ok: true, deletedUserId: req.params.id, customerCode: user.customer_code, name: user.name });
 }));
 
 router.get('/:id/orders', aw(async (req, res) => {

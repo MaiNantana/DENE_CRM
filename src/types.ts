@@ -1,6 +1,7 @@
 export type TierLevel = 'Standard' | 'Silver' | 'Gold' | 'Platinum';
 export type StaffRole = 'admin' | 'manager' | 'user';
-export type SlipVerificationStatus = 'verified' | 'uncertain' | 'suspicious';
+export type SlipVerificationStatus = 'verified' | 'uncertain' | 'suspicious' | 'duplicate';
+export type SlipReviewStatus = SlipVerificationStatus | 'manual';
 
 export interface OrderItemInput {
   productId?: string | null;
@@ -10,18 +11,28 @@ export interface OrderItemInput {
 }
 
 export interface OrderCreatePayload {
-  userId: string;
+  userId?: string;
+  // For non-members (walk-in) submitting a slip: identify by LINE id + optional display name.
+  lineId?: string;
+  guestName?: string;
   items?: OrderItemInput[];
   discount?: number;
   discountMode?: 'manual' | 'member';
   note?: string;
   status?: string;
   slipVerificationToken?: string;
+  slipImageData?: string;
+  slipAmount?: number;
+  // QR-decoded slip metadata carried with a manual (human-confirmed amount) submission.
+  slipReference?: string | null;
+  slipBank?: string | null;
+  slipTransactionDate?: string | null;
+  slipTransactionTime?: string | null;
 }
 
 export interface SlipAnalyzeRequest {
   imageData: string;
-  userId: string;
+  userId?: string;
   lineId?: string;
 }
 
@@ -42,6 +53,58 @@ export interface SlipAnalysisResult {
   canProceed: boolean;
   verificationToken: string | null;
   slipUrl: string | null;
+  slipFingerprint?: string | null;
+  manualReview?: boolean;
+  duplicateOfOrderId?: string | null;
+  duplicateOfOrderRef?: string | null;
+  duplicateReason?: string | null;
+}
+
+export interface SlipReviewLog {
+  id: string;
+  companyId?: number;
+  analysisId: string;
+  userId?: string | null;
+  userName?: string | null;
+  lineId?: string | null;
+  source: 'analyze' | 'order';
+  status: SlipReviewStatus;
+  amount: number | null;
+  bank?: string | null;
+  referenceNumber?: string | null;
+  slipFingerprint?: string | null;
+  slipTransactionDate?: string | null;
+  slipTransactionTime?: string | null;
+  duplicateOrderId?: string | null;
+  duplicateOrderRef?: string | null;
+  reason?: string | null;
+  createdAt: string;
+}
+
+export interface SlipMonthlyReport {
+  monthKey: string;
+  monthLabel: string;
+  total: number;
+  manual: number;
+  verified: number;
+  uncertain: number;
+  suspicious: number;
+  duplicate: number;
+}
+
+export interface SlipReviewReport {
+  windowDays: number;
+  months: number;
+  summary: {
+    totalAttempts: number;
+    duplicateAttempts: number;
+    suspiciousAttempts: number;
+    manualAttempts: number;
+    verifiedAttempts: number;
+    uncertainAttempts: number;
+  };
+  monthly: SlipMonthlyReport[];
+  recent: SlipReviewLog[];
 }
 
 export interface TierConfig {
@@ -60,6 +123,7 @@ export interface TierConfig {
 export interface User {
   id: string;
   companyId?: number;
+  customerCode?: string;
   lineId: string;
   name: string;
   phone?: string;

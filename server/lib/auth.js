@@ -1,3 +1,4 @@
+import './env.js';
 import crypto from 'crypto';
 import { getCompanyCookieName, getCompanyById, resolveCompanyFromRequest } from './company.js';
 const SESSION_TTL_MS = Number(process.env.AUTH_SESSION_TTL_MS || 1000 * 60 * 60 * 12);

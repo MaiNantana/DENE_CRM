@@ -8,6 +8,7 @@ interface AdminAuthContextValue {
   loading: boolean;
   login: (username: string, password: string) => Promise<StaffUser>;
   bootstrap: (data: { displayName: string; username: string; password: string }) => Promise<StaffUser>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<StaffUser | null>;
 }
@@ -81,13 +82,17 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     return nextUser;
   }, []);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await authApi.changePassword(currentPassword, newPassword);
+  }, []);
+
   const logout = useCallback(async () => {
     await authApi.logout();
     setUser(null);
   }, []);
 
   return (
-    <AdminAuthContext.Provider value={{ user, hasStaff, loading, login, bootstrap, logout, refresh }}>
+    <AdminAuthContext.Provider value={{ user, hasStaff, loading, login, bootstrap, changePassword, logout, refresh }}>
       {children}
     </AdminAuthContext.Provider>
   );

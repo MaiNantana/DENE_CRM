@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ShieldCheck, Ticket, Gift, History, Download, Loader2, AlertCircle, CheckCircle, Clock, XCircle, X, BadgeCheck } from 'lucide-react';
 import LiffLayout from './LiffLayout';
 import { publicApi } from '../../api';
@@ -12,7 +12,6 @@ import type { PointHistory } from '../../types';
 
 export default function LiffMember() {
   const [params]  = useSearchParams();
-  const nav       = useNavigate();
   const company = getCurrentCompany();
   const fallbackLineId = params.get('lineId') || (import.meta.env.DEV ? DEMO_LINE_ID : '');
   const { lineId, loading: identityLoading, error: identityError, isAuto } = useLineIdentity(fallbackLineId);
@@ -30,14 +29,21 @@ export default function LiffMember() {
   const [selectedPromo, setSelectedPromo] = useState<any | null>(null);
 
   const loadMemberHistory = async (userId: string) => {
-    const [orderData, redemptionData, pointData] = await Promise.all([
+    const [orderData, redemptionData, pointData] = await Promise.allSettled([
       publicApi.getUserOrders(userId),
       publicApi.getUserRedemptions(userId),
       publicApi.getUserPoints(userId),
     ]);
-    setOrders(orderData);
-    setRedemptionHistory(redemptionData);
-    setPointHistory(pointData.filter((p: PointHistory) => p.type === 'earn'));
+
+    if (orderData.status === 'fulfilled') {
+      setOrders(orderData.value);
+    }
+    if (redemptionData.status === 'fulfilled') {
+      setRedemptionHistory(redemptionData.value);
+    }
+    if (pointData.status === 'fulfilled') {
+      setPointHistory(pointData.value.filter((p: PointHistory) => p.type === 'earn'));
+    }
   };
 
   useEffect(() => {
@@ -90,7 +96,7 @@ export default function LiffMember() {
           <AlertCircle size={28} className="text-red-400" />
         </div>
         <p className="text-japandi-700 font-semibold">{error}</p>
-        <button onClick={() => nav(buildCompanyPath(`/liff/register${lineId ? `?lineId=${encodeURIComponent(lineId)}` : ''}`, company))}
+        <button onClick={() => { window.location.href = buildCompanyPath(`/liff/register${lineId ? `?lineId=${encodeURIComponent(lineId)}` : ''}`, company); }}
           className="py-3 px-6 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900">
           สมัครสมาชิก
         </button>
@@ -584,11 +590,11 @@ export default function LiffMember() {
 
         {/* Quick actions */}
         <div className="grid grid-cols-2 gap-3 pt-2">
-          <button onClick={() => nav(buildCompanyPath(`/liff/slip?lineId=${encodeURIComponent(lineId)}`, company))}
+          <button onClick={() => { window.location.href = buildCompanyPath(`/liff/slip?lineId=${encodeURIComponent(lineId)}`, company); }}
             className="py-3.5 bg-japandi-800 text-white rounded-2xl font-bold text-sm shadow-md hover:bg-japandi-900 transition-colors">
             📷 ส่งสลิป
           </button>
-          <button onClick={() => nav(buildCompanyPath(`/liff/register?lineId=${encodeURIComponent(lineId)}`, company))}
+          <button onClick={() => { window.location.href = buildCompanyPath(`/liff/register?lineId=${encodeURIComponent(lineId)}`, company); }}
             className="py-3.5 bg-white border-2 border-japandi-200 text-japandi-800 rounded-2xl font-bold text-sm hover:bg-japandi-50 transition-colors">
             แก้ไขข้อมูล
           </button>

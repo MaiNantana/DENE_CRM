@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ArrowRight, Camera, CreditCard, Loader2, Smartphone, UserPlus } from 'lucide-react';
 import LiffLayout from './LiffLayout';
 import { initializeLiff } from '../../lib/lineLiff';
 import { publicApi } from '../../api';
 import { useLineIdentity } from '../../hooks/useLineIdentity';
-import { buildCompanyPath, getCurrentCompany } from '../../lib/company';
+import { buildCompanyPath, getCompanyByCode, getCurrentCompany } from '../../lib/company';
 
 function getBootstrapTarget() {
   if (typeof window === 'undefined') return '';
@@ -24,7 +24,14 @@ function getBootstrapTarget() {
     const normalized = decoded.replace(/^\/+/, '');
     if (!normalized) return '';
     const company = getCurrentCompany();
-    if (/^(DENE|Kefera)\//i.test(normalized)) return `/${normalized}`;
+    const companyPathMatch = normalized.match(/^(DENE|KEFERA)(?:\/(.*))?$/i);
+    if (companyPathMatch) {
+      const targetCompany = getCompanyByCode(companyPathMatch[1]);
+      const remainder = String(companyPathMatch[2] || '').replace(/^\/+/, '');
+      if (!remainder) return buildCompanyPath('/liff', targetCompany);
+      if (remainder.startsWith('liff/')) return buildCompanyPath(`/${remainder}`, targetCompany);
+      return buildCompanyPath(`/liff/${remainder}`, targetCompany);
+    }
     if (normalized.startsWith('liff/')) return buildCompanyPath(`/${normalized}`, company);
     if (normalized.startsWith('admin/')) return buildCompanyPath(`/${normalized}`, company);
     if (normalized.startsWith('register') || normalized.startsWith('slip') || normalized.startsWith('member')) {
@@ -38,7 +45,6 @@ function getBootstrapTarget() {
 }
 
 export default function LiffEntry() {
-  const navigate = useNavigate();
   const target = getBootstrapTarget();
   const { lineId, loading: identityLoading } = useLineIdentity();
   const [memberExists, setMemberExists] = useState<boolean | null>(null);
@@ -56,13 +62,13 @@ export default function LiffEntry() {
       }
 
       if (!alive || !target) return;
-      navigate(target, { replace: true });
+      window.location.replace(target);
     })();
 
     return () => {
       alive = false;
     };
-  }, [navigate, target]);
+  }, [target]);
 
   useEffect(() => {
     if (target) return;
@@ -112,7 +118,7 @@ export default function LiffEntry() {
       }
     }
 
-    navigate(buildCompanyPath(exists ? '/liff/member' : '/liff/register', company));
+    window.location.href = buildCompanyPath(exists ? '/liff/member' : '/liff/register', company);
   };
 
   if (target) {

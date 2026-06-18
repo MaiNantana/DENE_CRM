@@ -1,11 +1,13 @@
+import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { Router } from 'express';
 import db from '../db.js';
 import { aw } from '../asyncWrap.js';
-import { verifySlipToken } from '../lib/slipVerification.js';
-import { getSlipStoragePath } from '../lib/slipStorage.js';
+import { createSlipFingerprint, findDuplicateSlip, parseDataUrl, recordSlipReviewLog, verifySlipToken } from '../lib/slipVerification.js';
+import { getSlipStoragePath, storeSlipImage } from '../lib/slipStorage.js';
 import { syncUserPointsState, awardUserPoints, consumeUserPoints } from '../lib/points.js';
+import { getOrCreateGuestUser } from '../lib/guestUser.js';
 
 const router = Router();
 
@@ -58,6 +60,10 @@ function normalizeOrderInputAmount(amount) {
 async function getUserTierProfile(conn, userId, companyId) {
   const user = await syncUserPointsState(conn, userId, companyId);
   if (!user) return null;
+  const [[memberRow]] = await conn.query(
+    'SELECT is_member FROM users WHERE id=? AND company_id=? LIMIT 1',
+    [userId, companyId]
+  );
   const [[tierRow]] = await conn.query(
     `SELECT COALESCE(baht_per_point, 10) AS baht_per_point,
             COALESCE(multiplier, 1) AS multiplier,
@@ -71,6 +77,7 @@ async function getUserTierProfile(conn, userId, companyId) {
     userId: user.id,
     lineId: user.line_id,
     userTier: user.tier,
+    isMember: Number(memberRow?.is_member) !== 0,
     bahtPerPoint: Number(tierRow?.baht_per_point) || 10,
     multiplier: Number(tierRow?.multiplier) || 1,
     discountPercent: Number(tierRow?.discount_percent) || 0,
@@ -82,7 +89,8 @@ async function getOrderContext(conn, userId, amount, companyId) {
   if (!profile) return null;
   return {
     ...profile,
-    points: calculatePoints(amount, profile.bahtPerPoint, profile.multiplier),
+    // Non-members (walk-in / guest) never earn points.
+    points: profile.isMember ? calculatePoints(amount, profile.bahtPerPoint, profile.multiplier) : 0,
   };
 }
 
@@ -262,6 +270,127 @@ router.get('/', aw(async (req, res) => {
   res.json(rows);
 }));
 
+// GET /api/orders/slip-reports?limit=20
+router.get('/slip-reports', aw(async (req, res) => {
+  const companyId = getCompanyId(req);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 12, 1), 50);
+  const windowDays = Math.min(Math.max(parseInt(req.query.windowDays, 10) || 30, 1), 365);
+  const months = Math.min(Math.max(parseInt(req.query.months, 10) || 12, 1), 24);
+
+  const now = new Date();
+  const monthMap = new Map();
+  const monthKeys = [];
+  for (let i = months - 1; i >= 0; i -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthKey = date.toISOString().slice(0, 7);
+    monthKeys.push(monthKey);
+    monthMap.set(monthKey, {
+      monthKey,
+      monthLabel: date.toLocaleDateString('th-TH', { month: 'short', year: 'numeric' }),
+      total: 0,
+      manual: 0,
+      verified: 0,
+      uncertain: 0,
+      suspicious: 0,
+      duplicate: 0,
+    });
+  }
+  const monthStart = monthKeys[0] ? `${monthKeys[0]}-01` : null;
+
+  const [[summary]] = await db.query(
+    `
+      SELECT
+        COUNT(*) AS totalAttempts,
+        COALESCE(SUM(status='duplicate'), 0) AS duplicateAttempts,
+        COALESCE(SUM(status='suspicious'), 0) AS suspiciousAttempts
+      FROM slip_review_logs
+      WHERE company_id=?
+        AND status IN ('duplicate', 'suspicious')
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+    `,
+    [companyId, windowDays]
+  );
+
+  const [recentRows] = await db.query(
+    `
+      SELECT
+        l.id,
+        l.company_id AS companyId,
+        l.analysis_id AS analysisId,
+        l.user_id AS userId,
+        u.name AS userName,
+        l.line_id AS lineId,
+        l.source,
+        l.status,
+        l.amount,
+        l.bank,
+        l.reference_number AS referenceNumber,
+        l.slip_fingerprint AS slipFingerprint,
+        l.slip_transaction_date AS slipTransactionDate,
+        l.slip_transaction_time AS slipTransactionTime,
+        l.duplicate_order_id AS duplicateOrderId,
+        l.duplicate_order_ref AS duplicateOrderRef,
+        l.reason,
+        l.created_at AS createdAt
+      FROM slip_review_logs l
+      LEFT JOIN users u ON u.id=l.user_id AND u.company_id=l.company_id
+      WHERE l.company_id=?
+        AND l.status IN ('duplicate', 'suspicious')
+      ORDER BY l.created_at DESC
+      LIMIT ?
+    `,
+    [companyId, limit]
+  );
+
+  if (monthStart) {
+    const [monthlyRows] = await db.query(
+      `
+        SELECT
+          DATE_FORMAT(o.ordered_at, '%Y-%m') AS monthKey,
+          COUNT(*) AS total,
+          COALESCE(SUM(o.slip_verification_status='manual'), 0) AS manual,
+          COALESCE(SUM(o.slip_verification_status='verified'), 0) AS verified,
+          COALESCE(SUM(o.slip_verification_status='uncertain'), 0) AS uncertain,
+          COALESCE(SUM(o.slip_verification_status='suspicious'), 0) AS suspicious,
+          COALESCE(SUM(o.slip_verification_status='duplicate'), 0) AS duplicate
+        FROM orders o
+        WHERE o.company_id=?
+          AND o.slip_verification_status IS NOT NULL
+          AND o.ordered_at >= ?
+        GROUP BY DATE_FORMAT(o.ordered_at, '%Y-%m')
+        ORDER BY monthKey ASC
+      `,
+      [companyId, monthStart]
+    );
+
+    monthlyRows.forEach(row => {
+      const item = monthMap.get(row.monthKey);
+      if (!item) return;
+      item.total = Number(row.total || 0);
+      item.manual = Number(row.manual || 0);
+      item.verified = Number(row.verified || 0);
+      item.uncertain = Number(row.uncertain || 0);
+      item.suspicious = Number(row.suspicious || 0);
+      item.duplicate = Number(row.duplicate || 0);
+    });
+  }
+
+  res.json({
+    windowDays,
+    months,
+    summary: {
+      totalAttempts: Number(summary?.totalAttempts || 0),
+      duplicateAttempts: Number(summary?.duplicateAttempts || 0),
+      suspiciousAttempts: Number(summary?.suspiciousAttempts || 0),
+      manualAttempts: 0,
+      verifiedAttempts: 0,
+      uncertainAttempts: 0,
+    },
+    monthly: Array.from(monthMap.values()),
+    recent: recentRows,
+  });
+}));
+
 // GET /api/orders/:id
 router.get('/:id', aw(async (req, res) => {
   const companyId = getCompanyId(req);
@@ -301,11 +430,28 @@ router.get('/:id/slip-image', aw(async (req, res) => {
 
 // POST /api/orders
 router.post('/', aw(async (req, res) => {
-  const { userId, items = [], discount, discountMode, note, status = 'pending', slipVerificationToken } = req.body;
+  const {
+    items = [],
+    discount,
+    discountMode,
+    note,
+    status = 'pending',
+    slipVerificationToken,
+    slipImageData,
+    slipAmount,
+    slipReference,
+    slipBank,
+    slipTransactionDate,
+    slipTransactionTime,
+    lineId,
+    guestName,
+  } = req.body;
+  let userId = req.body.userId;
   const companyId = getCompanyId(req);
   const normalizedStatus = normalizeStatus(status || 'pending');
   const normalizedItems = Array.isArray(items) ? items : [];
-  if (!userId) return res.status(400).json({ error: 'userId is required' });
+  // Members pass userId; non-members (walk-in slip uploads) pass lineId and become a guest record.
+  if (!userId && !lineId) return res.status(400).json({ error: 'userId or lineId is required' });
   if (!VALID_STATUS.includes(normalizedStatus)) return res.status(400).json({ error: 'Invalid status' });
   const normalizedDiscountMode = normalizeDiscountMode(discountMode);
 
@@ -314,6 +460,10 @@ router.post('/', aw(async (req, res) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
+    if (!userId && lineId) {
+      const guest = await getOrCreateGuestUser(conn, companyId, lineId, guestName);
+      userId = guest.id;
+    }
     const userProfile = await getUserTierProfile(conn, userId, companyId);
     if (!userProfile) { await conn.rollback(); return res.status(404).json({ error: 'User not found' }); }
 
@@ -323,6 +473,7 @@ router.post('/', aw(async (req, res) => {
     let finalStatus = normalizedStatus;
     let finalDiscountMode = normalizedDiscountMode;
     let slipPayload = null;
+    let slipStorageData = null;
 
     if (slipVerificationToken) {
       slipPayload = verifySlipToken(slipVerificationToken);
@@ -342,15 +493,131 @@ router.post('/', aw(async (req, res) => {
         await conn.rollback();
         return res.status(400).json({ error: 'Slip is not verified' });
       }
+      if (!slipImageData) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'slipImageData is required' });
+      }
 
       amount = normalizeOrderAmount(slipPayload.amount);
       if (!amount) {
         await conn.rollback();
         return res.status(400).json({ error: 'Slip amount is required' });
       }
+      const parsedSlip = parseDataUrl(slipImageData);
+      const slipFingerprint = await createSlipFingerprint(slipImageData);
+      if (slipPayload.slipFingerprint && slipPayload.slipFingerprint !== slipFingerprint) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'Slip image mismatch' });
+      }
+      const duplicateSlip = await findDuplicateSlip(conn, {
+        companyId,
+        slipFingerprint,
+        referenceNumber: slipPayload.referenceNumber,
+        amount,
+        bank: slipPayload.bank,
+        transactionDate: slipPayload.transactionDate,
+        transactionTime: slipPayload.transactionTime,
+      });
+      if (duplicateSlip) {
+        await recordSlipReviewLog(db, {
+          companyId,
+          analysisId: slipPayload.analysisId || orderRef,
+          userId,
+          lineId: userProfile.lineId,
+          source: 'order',
+          status: 'duplicate',
+          amount,
+          bank: slipPayload.bank,
+          referenceNumber: slipPayload.referenceNumber,
+          slipFingerprint,
+          transactionDate: slipPayload.transactionDate,
+          transactionTime: slipPayload.transactionTime,
+          duplicateOrderId: duplicateSlip.match?.order_id || null,
+          duplicateOrderRef: duplicateSlip.match?.order_ref || null,
+          reason: `พบสลิปซ้ำกับออเดอร์ ${duplicateSlip.match?.order_ref || 'รายการเดิม'}`,
+        }).catch(() => null);
+        await conn.rollback();
+        return res.status(409).json({
+          error: `พบสลิปซ้ำกับออเดอร์ ${duplicateSlip.match?.order_ref || 'รายการเดิม'}`,
+          duplicateOrderRef: duplicateSlip.match?.order_ref || null,
+        });
+      }
+      const slipUrl = await storeSlipImage({
+        analysisId: crypto.randomUUID(),
+        mimeType: parsedSlip.mimeType,
+        base64Data: parsedSlip.base64Data,
+      });
       orderItems = buildSlipOrderItems(amount);
       finalStatus = 'pending';
       finalDiscountMode = 'manual';
+      slipStorageData = {
+        slipUrl,
+        slipFingerprint,
+      };
+    } else if (slipImageData) {
+      const parsedSlip = parseDataUrl(slipImageData);
+      const slipFingerprint = await createSlipFingerprint(slipImageData);
+      const manualSlipAmount = normalizeOrderAmount(slipAmount);
+      if (!manualSlipAmount) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'slipAmount is required' });
+      }
+      // QR data (when the slip QR was decoded): used for stronger duplicate detection + records.
+      const qrReference = typeof slipReference === 'string' && slipReference.trim() ? slipReference.trim() : null;
+      const qrBank = typeof slipBank === 'string' && slipBank.trim() ? slipBank.trim() : null;
+      const qrDate = typeof slipTransactionDate === 'string' && slipTransactionDate.trim() ? slipTransactionDate.trim() : null;
+      const qrTime = typeof slipTransactionTime === 'string' && slipTransactionTime.trim() ? slipTransactionTime.trim() : null;
+
+      const duplicateSlip = await findDuplicateSlip(conn, {
+        companyId,
+        slipFingerprint,
+        referenceNumber: qrReference,
+        amount: manualSlipAmount,
+        bank: qrBank,
+      });
+      if (duplicateSlip) {
+        await recordSlipReviewLog(db, {
+          companyId,
+          analysisId: `manual-${orderRef}`,
+          userId,
+          lineId: userProfile.lineId,
+          source: 'order',
+          status: 'duplicate',
+          amount: manualSlipAmount,
+          bank: qrBank,
+          referenceNumber: qrReference,
+          slipFingerprint,
+          duplicateOrderId: duplicateSlip.match?.order_id || null,
+          duplicateOrderRef: duplicateSlip.match?.order_ref || null,
+          reason: `พบสลิปซ้ำกับออเดอร์ ${duplicateSlip.match?.order_ref || 'รายการเดิม'}`,
+        }).catch(() => null);
+        await conn.rollback();
+        return res.status(409).json({
+          error: `พบสลิปซ้ำกับออเดอร์ ${duplicateSlip.match?.order_ref || 'รายการเดิม'}`,
+          duplicateOrderRef: duplicateSlip.match?.order_ref || null,
+        });
+      }
+      const slipUrl = await storeSlipImage({
+        analysisId: crypto.randomUUID(),
+        mimeType: parsedSlip.mimeType,
+        base64Data: parsedSlip.base64Data,
+      });
+      amount = manualSlipAmount;
+      orderItems = buildSlipOrderItems(amount);
+      orderDiscount = 0;
+      finalStatus = 'pending';
+      finalDiscountMode = 'manual';
+      slipPayload = {
+        manualReview: true,
+        slipUrl,
+        slipFingerprint,
+        referenceNumber: qrReference,
+        bank: qrBank,
+        transactionDate: qrDate,
+        transactionTime: qrTime,
+        // Authenticity was confirmed by the slip QR; only the amount is human-entered.
+        verificationStatus: qrReference ? 'verified' : 'manual',
+      };
     } else {
       if (!orderItems.length) {
         await conn.rollback();
@@ -375,14 +642,45 @@ router.post('/', aw(async (req, res) => {
     const slipSummary = slipPayload && typeof slipPayload.summary === 'string' && slipPayload.summary.trim()
       ? slipPayload.summary.trim()
       : 'Slip analysis completed.';
+    const slipReviewNote = slipPayload
+      ? slipPayload.manualReview
+        ? `ส่งสลิปเข้าตรวจด้วยมือ: ${formatSlipAmount(amount)} THB`
+        : `ตรวจสลิปอัตโนมัติ: ${formatSlipAmount(amount)} THB | ${slipSummary}`
+      : null;
     const orderNote = slipPayload
-      ? [baseNote, `AI slip verified: ${formatSlipAmount(amount)} THB | ${slipSummary}`]
+      ? [baseNote, slipReviewNote]
           .filter(Boolean)
           .join('\n\n')
       : (baseNote || null);
+    const slipVerificationStatus = slipPayload
+      ? (slipPayload.verificationStatus || (slipPayload.manualReview ? 'manual' : 'verified'))
+      : null;
+    const slipUrl = slipStorageData?.slipUrl || slipPayload?.slipUrl || null;
+    const slipFingerprint = slipStorageData?.slipFingerprint || slipPayload?.slipFingerprint || null;
     await conn.query(
-      "INSERT INTO orders (company_id, order_ref, user_id, amount, discount, discount_mode, points_earned, slip_url, note, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [companyId, orderRef, userId, amount, orderDiscount, finalDiscountMode, context.points, slipPayload?.slipUrl || null, orderNote, finalStatus]
+      `INSERT INTO orders (
+         company_id, order_ref, user_id, amount, discount, discount_mode, points_earned,
+         slip_url, slip_fingerprint, slip_reference_number, slip_bank, slip_transaction_date,
+         slip_transaction_time, slip_verification_status, note, status
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        companyId,
+        orderRef,
+        userId,
+        amount,
+        orderDiscount,
+        finalDiscountMode,
+        context.points,
+        slipUrl,
+        slipFingerprint,
+        slipPayload?.referenceNumber || null,
+        slipPayload?.bank || null,
+        slipPayload?.transactionDate || null,
+        slipPayload?.transactionTime || null,
+        slipVerificationStatus,
+        orderNote,
+        finalStatus,
+      ]
     );
     const [[{ id: orderId }]] = await conn.query("SELECT id FROM orders WHERE order_ref=? AND company_id=?", [orderRef, companyId]);
     for (const it of orderItems) {

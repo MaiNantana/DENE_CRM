@@ -33,6 +33,8 @@ $serverStage = Join-Path $StageDir 'server'
 $serverTarget = Join-Path $TargetDir 'server'
 $webConfigStage = Join-Path $StageDir 'web.config'
 $webConfigTarget = Join-Path $TargetDir 'web.config'
+$envLocalStage = Join-Path $StageDir '.env.local'
+$envLocalTarget = Join-Path $TargetDir '.env.local'
 $backupDir = Join-Path 'C:\Temp' ("crm_backup_" + (Get-Date -Format 'yyyyMMdd_HHmmss'))
 
 if (!(Test-Path $distStage)) {
@@ -56,6 +58,14 @@ if (Test-Path $serverStage) {
 
 if (Test-Path $webConfigStage) {
   Copy-Item $webConfigStage $webConfigTarget -Force
+}
+
+if (Test-Path $envLocalStage) {
+  Copy-Item $envLocalStage $envLocalTarget -Force
+}
+
+if (Get-Command iisreset -ErrorAction SilentlyContinue) {
+  & iisreset /restart | Out-Null
 }
 
 [PSCustomObject]@{

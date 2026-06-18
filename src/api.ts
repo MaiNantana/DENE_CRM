@@ -3,6 +3,7 @@ import type {
   OrderCreatePayload,
   PointHistory,
   PromotionRedemptionRequest,
+  SlipReviewReport,
   SlipAnalysisResult,
   SlipAnalyzeRequest,
 } from './types';
@@ -59,6 +60,7 @@ function createApiClient(base: string) {
     }) => request<any>(base, 'PUT', `/users/${id}`, data),
     setUserStatus: (id: string, isActive: boolean) =>
       request<any>(base, 'PATCH', `/users/${id}/status`, { isActive }),
+    deleteUser: (id: string) => request<any>(base, 'DELETE', `/users/${id}`),
 
     // Tiers
     getTiers:   () => request<any[]>(base, 'GET', '/tiers'),
@@ -91,6 +93,8 @@ function createApiClient(base: string) {
     updateOrder: (id: string, data: OrderCreatePayload) => request<any>(base, 'PUT', `/orders/${id}`, data),
     setOrderStatus: (id: string, status: string) => request<any>(base, 'PATCH', `/orders/${id}/status`, { status }),
     deleteOrder: (id: string) => request<any>(base, 'DELETE', `/orders/${id}`),
+    getSlipReports: (limit = 12, windowDays = 30, months = 12) =>
+      request<SlipReviewReport>(base, 'GET', `/orders/slip-reports?limit=${limit}&windowDays=${windowDays}&months=${months}`),
 
     // Products
     getProducts: (search?: string, showAll = false) =>
@@ -103,6 +107,17 @@ function createApiClient(base: string) {
     updateProduct: (id: string, data: object) => request<any>(base, 'PUT', `/products/${id}`, data),
     setProductStatus: (id: string, isActive: boolean) => request<any>(base, 'PATCH', `/products/${id}/status`, { isActive }),
     deleteProduct: (id: string) => request<any>(base, 'DELETE', `/products/${id}`),
+
+    // Payment accounts (receiving bank accounts — display/reference only)
+    getPaymentAccounts: (showAll = true) =>
+      request<any[]>(base, 'GET', `/payment-accounts${showAll ? '?showAll=1' : ''}`),
+    createPaymentAccount: (data: { bank: string; accountName: string; accountNumber?: string; promptpay?: string; note?: string; sortOrder?: number }) =>
+      request<any>(base, 'POST', '/payment-accounts', data),
+    updatePaymentAccount: (id: string, data: { bank: string; accountName: string; accountNumber?: string; promptpay?: string; note?: string; sortOrder?: number }) =>
+      request<any>(base, 'PUT', `/payment-accounts/${id}`, data),
+    setPaymentAccountStatus: (id: string, isActive: boolean) =>
+      request<any>(base, 'PATCH', `/payment-accounts/${id}/status`, { isActive }),
+    deletePaymentAccount: (id: string) => request<any>(base, 'DELETE', `/payment-accounts/${id}`),
 
     // Dashboard
     getDashboard: () => request<any>(base, 'GET', '/dashboard'),
@@ -137,6 +152,7 @@ export const publicApi = {
     getUserPoints: (id: string) => request<PointHistory[]>(`/api/public`, 'GET', `/users/${id}/points`),
     getTiers:   () => request<any[]>('/api/public', 'GET', '/tiers'),
     getCompanySettings: () => request<CompanySettings>('/api/public', 'GET', '/settings'),
+    getPaymentAccounts: () => request<any[]>('/api/public', 'GET', '/payment-accounts'),
     getPromotions: (status?: 'active' | 'inactive') =>
       request<any[]>('/api/public', 'GET', `/promotions${status ? `?status=${status}` : ''}`),
     redeemPromotion: (id: string, data: { userId?: string; lineId?: string }) =>
@@ -149,6 +165,8 @@ export const publicApi = {
 export const authApi = {
   status: () => request<{ hasStaff: boolean }>('/api/auth', 'GET', '/status'),
   me: () => request<{ user: any }>('/api/auth', 'GET', '/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>('/api/auth', 'POST', '/me/password', { currentPassword, newPassword }),
   login: (username: string, password: string) =>
     request<{ user: any }>('/api/auth', 'POST', '/login', { username, password }),
   logout: () => request<{ ok: boolean }>('/api/auth', 'POST', '/logout'),

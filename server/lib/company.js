@@ -5,8 +5,8 @@ const COMPANY_CONFIGS = {
     label: 'DENE',
     lineOaName: 'DENE Line OA',
   },
-  Kefera: {
-    code: 'Kefera',
+  KEFERA: {
+    code: 'KEFERA',
     id: 2,
     label: 'Kefera',
     lineOaName: 'Kefera Line OA',
@@ -15,7 +15,7 @@ const COMPANY_CONFIGS = {
 
 export function normalizeCompanyCode(value) {
   const normalized = String(value || '').trim().toLowerCase();
-  if (normalized === 'kefera' || normalized === '2') return 'Kefera';
+  if (normalized === 'kefera' || normalized === '2') return 'KEFERA';
   if (normalized === 'dene' || normalized === '1') return 'DENE';
   return 'DENE';
 }
@@ -26,7 +26,7 @@ export function getCompanyByCode(value) {
 
 export function getCompanyById(value) {
   const numeric = Number(value);
-  if (numeric === 2) return COMPANY_CONFIGS.Kefera;
+  if (numeric === 2) return COMPANY_CONFIGS.KEFERA;
   return COMPANY_CONFIGS.DENE;
 }
 
@@ -56,7 +56,7 @@ export function resolveCompanyFromRequest(req) {
 
 export function getCompanyCookieName(company) {
   const normalized = normalizeCompanyCode(company?.code || company);
-  return normalized === 'Kefera' ? 'kefera_admin_session' : 'dene_admin_session';
+  return normalized === 'KEFERA' ? 'kefera_admin_session' : 'dene_admin_session';
 }
 
 export function getCompanyId(company) {
@@ -79,4 +79,3 @@ export function isValidCompanyCode(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return normalized === 'dene' || normalized === 'kefera' || normalized === '1' || normalized === '2';
 }
-

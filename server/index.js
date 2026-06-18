@@ -1,6 +1,6 @@
+import './lib/env.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 
 import authRouter      from './routes/auth.js';
 import staffRouter     from './routes/staff.js';
@@ -14,17 +14,22 @@ import productsRouter  from './routes/products.js';
 import settingsRouter  from './routes/companySettings.js';
 import dashboardRouter from './routes/dashboard.js';
 import chatRouter      from './routes/chat.js';
+import paymentAccountsRouter from './routes/paymentAccounts.js';
+import lineWebhookRouter from './routes/lineWebhook.js';
+import debugRouter     from './routes/debug.js';
 import { allowMethods, requireAuth, requireMethodRoles } from './middleware/auth.js';
 import { resolveCompanyFromRequest } from './lib/company.js';
-
-dotenv.config();
-
 const app  = express();
 // iisnode sets PORT to a named pipe path; local dev uses TCP 3001
 const PORT = process.env.PORT || 3001;
 
 // CORS needed for local dev only; iisnode shares the same origin
 app.use(cors({ origin: true, credentials: true }));
+
+// LINE Messaging API webhook: signature verification needs the raw request body, so this must
+// be registered before express.json(). Each company's LINE OA posts to /api/line/webhook/<company>.
+app.use('/api/line/webhook', express.raw({ type: '*/*', limit: '20mb' }), lineWebhookRouter);
+
 app.use(express.json({ limit: '20mb' }));
 app.use((req, _res, next) => {
   req.company = resolveCompanyFromRequest(req);
@@ -37,8 +42,9 @@ function allowPublicUserRoutes(req, res, next) {
   const isRootPost = method === 'POST' && req.path === '/';
   const isOrdersGet = method === 'GET' && /^\/[^/]+\/orders\/?$/.test(req.path);
   const isRedemptionsGet = method === 'GET' && /^\/[^/]+\/redemptions\/?$/.test(req.path);
+  const isPointsGet = method === 'GET' && /^\/[^/]+\/points\/?$/.test(req.path);
 
-  if (isRootGet || isRootPost || isOrdersGet || isRedemptionsGet) {
+  if (isRootGet || isRootPost || isOrdersGet || isRedemptionsGet || isPointsGet) {
     return next();
   }
 
@@ -66,6 +72,7 @@ app.use('/api/public/promotions', allowPublicPromotionRoutes, promotionsRouter);
 app.use('/api/public/slips', allowMethods(['POST']), slipsRouter);
 app.use('/api/public/orders', allowMethods(['POST']), ordersRouter);
 app.use('/api/public/settings', allowMethods(['GET']), settingsRouter);
+app.use('/api/public/payment-accounts', allowMethods(['GET']), paymentAccountsRouter);
 
 // Protected admin endpoints
 app.use('/api/admin/dashboard', requireAuth, allowMethods(['GET']), dashboardRouter);
@@ -112,6 +119,14 @@ app.use('/api/admin/chat', requireAuth, requireMethodRoles({
   GET:   ['admin', 'manager', 'user'],
   POST:  ['admin', 'manager'],
 }), chatRouter);
+app.use('/api/admin/payment-accounts', requireAuth, requireMethodRoles({
+  GET:    ['admin', 'manager', 'user'],
+  POST:   ['admin', 'manager'],
+  PUT:    ['admin', 'manager'],
+  PATCH:  ['admin', 'manager'],
+  DELETE: ['admin', 'manager'],
+}), paymentAccountsRouter);
+app.use('/api/admin/debug', debugRouter);
 app.use('/api/admin/staff', requireAuth, requireMethodRoles({
   GET:   ['admin'],
   POST:  ['admin'],

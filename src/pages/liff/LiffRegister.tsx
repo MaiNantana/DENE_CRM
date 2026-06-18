@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { UserPlus, CheckCircle, Loader2 } from 'lucide-react';
 import LiffLayout from './LiffLayout';
 import { publicApi } from '../../api';
@@ -10,7 +9,6 @@ import { buildCompanyPath, getCurrentCompany } from '../../lib/company';
 type Step = 'form' | 'success';
 
 export default function LiffRegister() {
-  const nav = useNavigate();
   const { lineId, loading: lineLoading, error: lineError } = useLineIdentity();
   const company = getCurrentCompany();
 
@@ -72,7 +70,7 @@ export default function LiffRegister() {
             </div>
           </div>
 
-          <button onClick={() => nav(buildCompanyPath('/liff/member'))}
+          <button onClick={() => { window.location.href = buildCompanyPath('/liff/member'); }}
             className="w-full py-3.5 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900 transition-colors shadow-md mt-2">
             ดูบัตรสมาชิก →
           </button>

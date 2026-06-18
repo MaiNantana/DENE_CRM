@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Tag, Award, Search, Plus, TrendingUp, CreditCard, Activity, ArrowRight, Menu, X, UserPlus, Loader2, Pencil, ToggleLeft, ToggleRight, Eye, EyeOff, ClipboardList, CheckCircle, Clock, XCircle, Trash2, ShoppingBag, Banknote, PackagePlus, BadgeCheck, Percent } from 'lucide-react';
-import { TierConfig, User, StaffRole, PromotionRedemptionRequest, CompanySettings } from '../types';
+import { Users, Tag, Award, Search, Plus, TrendingUp, CreditCard, Activity, ArrowRight, Menu, X, UserPlus, Loader2, Pencil, ToggleLeft, ToggleRight, Eye, EyeOff, ClipboardList, CheckCircle, Clock, XCircle, Trash2, ShoppingBag, Banknote, PackagePlus, BadgeCheck, Percent, AlertTriangle, RefreshCw, ScrollText } from 'lucide-react';
+import { TierConfig, User, StaffRole, PromotionRedemptionRequest, CompanySettings, SlipReviewReport } from '../types';
 import { api } from '../api';
 import { formatBirthdayDisplay, normalizeBirthdayInput } from '../utils';
 import { getCurrentCompany } from '../lib/company';
 import { getTierBahtPerPoint, normalizeTierBenefits, getTierDiscountPercent, getTierDurationDays } from '../lib/tiers';
+import PaymentAccounts from './PaymentAccounts';
 
 interface AdminDashboardProps {
   tiers: TierConfig[];
@@ -13,6 +14,7 @@ interface AdminDashboardProps {
 }
 
 interface MemberForm {
+  customerCode: string;
   lineId: string;
   name: string;
   phone: string;
@@ -23,19 +25,21 @@ interface MemberForm {
   totalSpent: string;
 }
 
-const EMPTY_FORM: MemberForm = { lineId: '', name: '', phone: '', email: '', birthday: '', tier: 'Standard', points: '0', totalSpent: '0' };
+const EMPTY_FORM: MemberForm = { customerCode: '', lineId: '', name: '', phone: '', email: '', birthday: '', tier: 'Standard', points: '0', totalSpent: '0' };
 
 type ModalMode = 'add' | 'edit';
 
-const ROLE_TABS: Record<StaffRole, Array<'overview' | 'users' | 'orders' | 'products' | 'promotions' | 'levels' | 'staff'>> = {
-  admin: ['overview', 'users', 'orders', 'products', 'promotions', 'levels', 'staff'],
-  manager: ['overview', 'users', 'orders', 'products', 'promotions'],
+type AdminTab = 'overview' | 'users' | 'orders' | 'slips' | 'products' | 'promotions' | 'levels' | 'payments' | 'staff';
+
+const ROLE_TABS: Record<StaffRole, Array<AdminTab>> = {
+  admin: ['overview', 'users', 'orders', 'slips', 'products', 'promotions', 'levels', 'staff'],
+  manager: ['overview', 'users', 'orders', 'slips', 'products', 'promotions'],
   user: ['overview', 'users', 'orders', 'products', 'promotions'],
 };
 
 export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboardProps) {
   const company = getCurrentCompany();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'orders' | 'products' | 'promotions' | 'levels' | 'staff'>('overview');
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [editingTiers, setEditingTiers] = useState(tiers);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [companySettings, setCompanySettings] = useState<CompanySettings>({ pointExpiryDays: 365 });
@@ -60,6 +64,9 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
   const [form, setForm] = useState<MemberForm>(EMPTY_FORM);
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null);
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false);
+  const [deleteUserError, setDeleteUserError] = useState('');
 
   // Confirm inactive modal
   const [confirmUser, setConfirmUser] = useState<User | null>(null);
@@ -68,6 +75,9 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
   // Orders state
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [slipReport, setSlipReport] = useState<SlipReviewReport | null>(null);
+  const [slipReportLoading, setSlipReportLoading] = useState(false);
+  const [slipReportError, setSlipReportError] = useState('');
 
   // Products state
   const [products, setProducts]           = useState<any[]>([]);
@@ -150,6 +160,7 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
       const data = await api.getUsers(q, all ?? showInactive);
       setUsers(data.map((u: any) => ({
         id: u.id,
+        customerCode: u.customer_code,
         lineId: u.line_id,
         name: u.name,
         phone: u.phone,
@@ -173,6 +184,19 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
     try { setOrders(await api.getOrders(200, status || undefined)); } catch { /* silent */ } finally { setOrdersLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderFilterStatus]);
+
+  const loadSlipReports = useCallback(async () => {
+    setSlipReportLoading(true);
+    setSlipReportError('');
+    try {
+      setSlipReport(await api.getSlipReports(12, 30, 12));
+    } catch (err: any) {
+      setSlipReport(null);
+      setSlipReportError(err?.message || 'ไม่สามารถโหลดรายงานสลิปได้');
+    } finally {
+      setSlipReportLoading(false);
+    }
+  }, []);
 
   const loadProducts = useCallback(async (q?: string, all?: boolean) => {
     setProductsLoading(true);
@@ -335,12 +359,13 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
   useEffect(() => {
     if (activeTab === 'users')       loadUsers();
     if (activeTab === 'orders')      { loadOrders(); loadTiersFromDb(); }
+    if (activeTab === 'slips')       loadSlipReports();
     if (activeTab === 'products')    loadProducts();
     if (activeTab === 'promotions')  loadPromotions();
     if (activeTab === 'levels')      { loadTiersFromDb(); loadCompanySettings(); }
     if (activeTab === 'staff')       loadStaff();
     if (activeTab === 'overview')    { loadDashboard(); loadTiersFromDb(); loadCompanySettings(); }
-  }, [activeTab, loadUsers, loadOrders, loadProducts, loadPromotions, loadTiersFromDb, loadDashboard, loadStaff, loadCompanySettings]);
+  }, [activeTab, loadUsers, loadOrders, loadProducts, loadPromotions, loadTiersFromDb, loadDashboard, loadStaff, loadCompanySettings, loadSlipReports]);
 
   useEffect(() => {
     if (activeTab !== 'products') return;
@@ -555,6 +580,7 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
   const refreshOrderViews = async () => {
     await Promise.all([
       loadOrders(),
+      loadSlipReports(),
       loadDashboard(),
       loadUsers(search || undefined, showInactive),
     ]);
@@ -737,6 +763,7 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
     setModalMode('edit');
     setEditingUser(user);
     setForm({
+      customerCode: user.customerCode || '',
       lineId:     user.lineId,
       name:       user.name,
       phone:      user.phone       || '',
@@ -829,6 +856,21 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!confirmDeleteUser) return;
+    setDeleteUserLoading(true);
+    setDeleteUserError('');
+    try {
+      await api.deleteUser(confirmDeleteUser.id);
+      setConfirmDeleteUser(null);
+      await loadUsers(search || undefined, showInactive);
+    } catch (err: any) {
+      setDeleteUserError(err.message || 'ไม่สามารถลบลูกค้าได้');
+    } finally {
+      setDeleteUserLoading(false);
+    }
+  };
+
   const totalUsers   = stats?.totalUsers  ?? users.length;
   const activePromos = stats?.activePromos ?? promotions.filter(p => p.status === 'active').length;
   const totalPoints  = stats?.totalPoints  ?? users.reduce((s, u) => s + u.points, 0);
@@ -844,6 +886,179 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
     { icon: Users, title: 'ดูรายชื่อลูกค้า', sub: 'ตรวจสอบประวัติสมาชิก', action: () => setActiveTab('users') },
     ...(canManageTiers ? [{ icon: Award, title: 'ปรับเกณฑ์ระดับสถานะ', sub: 'แก้ไขคะแนนเลื่อนขั้น', action: () => setActiveTab('levels') }] : []),
   ];
+
+  const slipReportSection = canEdit ? (
+    <div className="space-y-5">
+      <div className="bg-white border border-japandi-200 rounded-3xl p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-japandi-900">รายงานสลิปซ้ำ / สลิปน่าสงสัย</h3>
+            <p className="text-xs text-japandi-500 mt-1">
+              สรุปผลตรวจสลิปในช่วง {slipReport?.windowDays || 30} วันล่าสุด พร้อมรายการที่ต้องจับตา
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={loadSlipReports}
+            className="inline-flex items-center gap-2 rounded-xl border border-japandi-200 bg-white px-4 py-2 text-sm font-semibold text-japandi-700 hover:bg-japandi-50"
+          >
+            <RefreshCw size={14} className={slipReportLoading ? 'animate-spin' : ''} />
+            รีเฟรช
+          </button>
+        </div>
+
+        {slipReportLoading ? (
+          <div className="flex items-center justify-center py-10 gap-3 text-japandi-400">
+            <Loader2 size={18} className="animate-spin" />
+            <span className="text-sm">กำลังโหลดรายงานสลิป...</span>
+          </div>
+        ) : slipReportError ? (
+          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {slipReportError}
+          </div>
+        ) : slipReport ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+              <div className="rounded-2xl border border-japandi-200 bg-japandi-50/60 px-4 py-3">
+                <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">รายการที่ถูกจับตา</p>
+                <p className="mt-1 text-xl font-black text-japandi-900">{Number(slipReport.summary.totalAttempts).toLocaleString()}</p>
+              </div>
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest">สลิปซ้ำ</p>
+                <p className="mt-1 text-xl font-black text-red-700">{Number(slipReport.summary.duplicateAttempts).toLocaleString()}</p>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">สลิปน่าสงสัย</p>
+                <p className="mt-1 text-xl font-black text-amber-700">{Number(slipReport.summary.suspiciousAttempts).toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h4 className="text-sm font-bold text-japandi-900">รายการล่าสุด</h4>
+                <span className="text-xs text-japandi-500">ล่าสุด {Math.min(12, slipReport.recent.length)} รายการ</span>
+              </div>
+
+              {slipReport.recent.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-2 rounded-2xl border border-dashed border-japandi-200 bg-japandi-50/40 text-japandi-400">
+                  <AlertTriangle size={22} className="opacity-30" />
+                  <p className="text-sm">ยังไม่มีเหตุการณ์สลิปที่ต้องรายงาน</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {slipReport.recent.map((log) => (
+                    <div key={log.id} className="rounded-2xl border border-japandi-200 bg-white px-4 py-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            log.status === 'duplicate'
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {log.status === 'duplicate' ? 'SLIP DUP' : 'SLIP RISK'}
+                          </span>
+                          <span className="font-mono text-xs font-bold text-japandi-700">
+                            {log.analysisId}
+                          </span>
+                          <span className="text-[11px] text-japandi-500">
+                            {new Date(log.createdAt).toLocaleString('th-TH')}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-japandi-900 truncate">
+                          {log.userName || 'ไม่ทราบชื่อ'}{log.lineId ? ` · ${log.lineId}` : ''}
+                        </p>
+                        <p className="mt-0.5 text-xs text-japandi-500 truncate">
+                          {log.reason || '—'}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs md:text-right md:min-w-[300px]">
+                        <div className="rounded-xl bg-japandi-50 px-3 py-2">
+                          <p className="text-[9px] font-bold text-japandi-400 uppercase tracking-widest">ยอด</p>
+                          <p className="mt-0.5 font-bold text-japandi-900">
+                            {log.amount != null ? `฿${Number(log.amount).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-japandi-50 px-3 py-2">
+                          <p className="text-[9px] font-bold text-japandi-400 uppercase tracking-widest">อ้างอิง</p>
+                          <p className="mt-0.5 font-bold text-japandi-900 truncate">{log.referenceNumber || log.duplicateOrderRef || '—'}</p>
+                        </div>
+                        <div className="rounded-xl bg-japandi-50 px-3 py-2">
+                          <p className="text-[9px] font-bold text-japandi-400 uppercase tracking-widest">ธนาคาร</p>
+                          <p className="mt-0.5 font-bold text-japandi-900 truncate">{log.bank || '—'}</p>
+                        </div>
+                        <div className="rounded-xl bg-japandi-50 px-3 py-2">
+                          <p className="text-[9px] font-bold text-japandi-400 uppercase tracking-widest">แหล่ง</p>
+                          <p className="mt-0.5 font-bold text-japandi-900">{log.source === 'order' ? 'Order' : 'Analyze'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-japandi-200 bg-japandi-50/40 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                <div>
+                  <h4 className="text-sm font-bold text-japandi-900">สลิปรายเดือนย้อนหลัง {slipReport.months || 12} เดือน</h4>
+                  <p className="text-xs text-japandi-500 mt-1">แสดงยอดสลิปทั้งหมดแยกตามเดือน พร้อมสถานะที่พบในแต่ละเดือน</p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-japandi-200 text-japandi-400">
+                      <th className="py-2 pr-3 font-bold uppercase tracking-widest">เดือน</th>
+                      <th className="py-2 px-3 font-bold uppercase tracking-widest text-right">ทั้งหมด</th>
+                      <th className="py-2 px-3 font-bold uppercase tracking-widest text-right">Verified</th>
+                      <th className="py-2 px-3 font-bold uppercase tracking-widest text-right">Manual</th>
+                      <th className="py-2 px-3 font-bold uppercase tracking-widest text-right">Uncertain</th>
+                      <th className="py-2 px-3 font-bold uppercase tracking-widest text-right">Suspicious</th>
+                      <th className="py-2 pl-3 font-bold uppercase tracking-widest text-right">Duplicate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {slipReport.monthly.map((row) => (
+                      <tr key={row.monthKey} className="border-b border-japandi-100 last:border-0">
+                        <td className="py-2 pr-3 font-semibold text-japandi-900 whitespace-nowrap">
+                          {row.monthLabel}
+                        </td>
+                        <td className="py-2 px-3 text-right font-black text-japandi-900">
+                          {Number(row.total).toLocaleString()}
+                        </td>
+                        <td className="py-2 px-3 text-right text-emerald-700 font-semibold">
+                          {Number(row.verified).toLocaleString()}
+                        </td>
+                        <td className="py-2 px-3 text-right text-slate-600 font-semibold">
+                          {Number(row.manual).toLocaleString()}
+                        </td>
+                        <td className="py-2 px-3 text-right text-amber-700 font-semibold">
+                          {Number(row.uncertain).toLocaleString()}
+                        </td>
+                        <td className="py-2 px-3 text-right text-orange-700 font-semibold">
+                          {Number(row.suspicious).toLocaleString()}
+                        </td>
+                        <td className="py-2 pl-3 text-right text-red-700 font-semibold">
+                          {Number(row.duplicate).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
+  ) : (
+    <div className="rounded-2xl border border-dashed border-japandi-200 bg-white/80 px-4 py-10 text-center text-japandi-500">
+      <ScrollText size={28} className="mx-auto mb-3 opacity-30" />
+      <p className="text-sm font-semibold">ไม่มีสิทธิ์เข้าถึงรายงานสลิป</p>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 h-[calc(100vh-64px)] md:h-full text-japandi-900 relative">
@@ -866,9 +1081,11 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
             { key: 'overview',   icon: Activity,      label: 'Dashboard' },
             { key: 'users',      icon: Users,         label: 'ลูกค้า & สมาชิก' },
             { key: 'orders',     icon: ClipboardList, label: 'รายการสั่งซื้อ' },
+            { key: 'slips',      icon: ScrollText,    label: 'รายงานสลิป' },
             { key: 'products',   icon: ShoppingBag,   label: 'สินค้า' },
             { key: 'promotions', icon: Tag,           label: 'จัดการโปรโมชั่น' },
             { key: 'levels',     icon: Award,         label: 'ตั้งค่า Loyalty Level' },
+            { key: 'payments',   icon: Banknote,      label: 'บัญชีรับเงิน' },
             { key: 'staff',      icon: BadgeCheck,    label: 'บัญชีผู้ใช้' },
           ] as const).filter(({ key }) => visibleTabs.includes(key)).map(({ key, icon: Icon, label }) => (
             <button key={key} onClick={() => { setActiveTab(key); setIsMobileMenuOpen(false); }}
@@ -887,9 +1104,11 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
             {activeTab === 'overview'   && 'ภาพรวมระบบ (Dashboard)'}
             {activeTab === 'users'      && 'รายชื่อลูกค้า (Customers)'}
             {activeTab === 'orders'     && 'รายการสั่งซื้อ (Orders)'}
+            {activeTab === 'slips'      && 'รายงานสลิป'}
             {activeTab === 'products'   && 'สินค้า (Products)'}
             {activeTab === 'promotions' && 'จัดการโปรโมชั่น (Promotions)'}
             {activeTab === 'levels'     && 'ตั้งค่าระดับสมาชิก (Loyalty Tiers)'}
+            {activeTab === 'payments'   && 'บัญชีรับเงิน (Payment Accounts)'}
             {activeTab === 'staff'      && 'บัญชีผู้ใช้ (Staff Accounts)'}
           </h1>
           <div className="flex w-full sm:w-auto gap-2 flex-wrap">
@@ -897,7 +1116,7 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
               <div className="relative flex-1 sm:w-56">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-japandi-400" />
                 <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="ค้นหา Line ID / ชื่อ..."
+                  placeholder="ค้นหา รหัสลูกค้า / ชื่อ..."
                   className="pl-9 pr-4 py-2 bg-white border border-japandi-300 rounded-xl text-sm w-full focus:outline-none focus:ring-2 focus:ring-japandi-400 placeholder-japandi-400" />
               </div>
               {/* Toggle show inactive */}
@@ -1050,7 +1269,7 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
                 <table className="w-full text-left text-sm min-w-[700px]">
                   <thead className="bg-japandi-50 text-japandi-600 border-b border-japandi-200 uppercase tracking-wider text-[10px]">
                     <tr>
-                      <th className="px-5 py-4 font-bold">ชื่อลูกค้า / LINE</th>
+                      <th className="px-5 py-4 font-bold">ชื่อลูกค้า / รหัส</th>
                       <th className="px-5 py-4 font-bold text-center">ระดับ</th>
                       <th className="px-5 py-4 font-bold text-right">คะแนนสะสม</th>
                       <th className="px-5 py-4 font-bold text-right">ยอดซื้อรวม</th>
@@ -1066,6 +1285,7 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
                             <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" />
                             <div>
                               <div className="font-bold text-sm">{user.name}</div>
+                              <div className="text-japandi-500 text-[10px]">รหัสลูกค้า: {user.customerCode || '—'}</div>
                               <div className="text-japandi-500 text-[10px]">Line ID: {user.lineId}</div>
                             </div>
                           </div>
@@ -1103,6 +1323,11 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
                                 title="แก้ไขข้อมูล">
                                 <Pencil size={14} />
                               </button>
+                              <button onClick={() => setConfirmDeleteUser(user)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                                title="ลบลูกค้า">
+                                <Trash2 size={14} />
+                              </button>
                               <button onClick={() => handleToggleStatus(user)} disabled={statusLoading}
                                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors disabled:opacity-50 ${
                                   user.isActive
@@ -1126,130 +1351,157 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
           )}
 
           {/* ─── ORDERS ─── */}
+          {activeTab === 'slips' && slipReportSection}
+
           {activeTab === 'orders' && (
-            <div className="border border-japandi-200 rounded-2xl overflow-x-auto bg-white shadow-sm">
-              {ordersLoading ? (
-                <div className="flex items-center justify-center py-16 gap-3 text-japandi-400">
-                  <Loader2 size={20} className="animate-spin" /><span className="text-sm">กำลังโหลด...</span>
-                </div>
-              ) : orders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-2 text-japandi-400">
-                  <ClipboardList size={36} className="opacity-30" />
-                  <p className="text-sm">ยังไม่มีรายการสั่งซื้อ</p>
-                  {canEdit && (
-                    <button onClick={openAddOrder} className="mt-2 flex items-center gap-2 bg-japandi-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-japandi-900">
-                      <Plus size={15} /> สร้างออเดอร์แรก
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <table className="w-full text-left text-sm min-w-[1120px]">
-                  <thead className="bg-japandi-50 text-japandi-600 border-b border-japandi-200 uppercase tracking-wider text-[10px]">
-                    <tr>
-                      <th className="px-4 py-4 font-bold">เลขที่ออเดอร์</th>
-                      <th className="px-4 py-4 font-bold">ลูกค้า</th>
-                      <th className="px-4 py-4 font-bold">รายการสินค้า</th>
-                      <th className="px-4 py-4 font-bold text-right">ยอดรวม</th>
-                      <th className="px-4 py-4 font-bold text-right">ส่วนลด</th>
-                      <th className="px-4 py-4 font-bold text-center">แต้มที่ได้</th>
-                      <th className="px-4 py-4 font-bold">หมายเหตุ</th>
-                      <th className="px-4 py-4 font-bold text-center">สถานะ</th>
-                      <th className="px-4 py-4 font-bold">วันที่</th>
-                      <th className="px-4 py-4 font-bold text-center">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-japandi-100">
-                    {orders.map((o: any) => (
-                      <tr key={o.id} className="hover:bg-japandi-50/50 transition-colors">
-                        <td className="px-4 py-3">
-                          <span className="font-mono font-bold text-xs text-japandi-800 uppercase">{o.order_ref}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-sm">{o.user_name || '—'}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {(o.items || []).slice(0,2).map((it: any, i: number) => (
-                            <div key={i} className="text-xs text-japandi-600 truncate max-w-[160px]">{it.name} x{it.qty}</div>
-                          ))}
-                          {(o.items || []).length > 2 && <div className="text-[10px] text-japandi-400">+{o.items.length - 2} รายการ</div>}
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-japandi-900">
-                          ฿{Number(o.amount).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs font-semibold text-japandi-700">
-                          <div className="flex flex-col items-end gap-1">
-                            <span>
-                              {Number(o.discount || 0) > 0
-                                ? `-฿${Number(o.discount).toLocaleString()}`
-                                : '—'}
+            <div className="space-y-5">
+              <div className="border border-japandi-200 rounded-2xl overflow-x-auto bg-white shadow-sm">
+                {ordersLoading ? (
+                  <div className="flex items-center justify-center py-16 gap-3 text-japandi-400">
+                    <Loader2 size={20} className="animate-spin" /><span className="text-sm">กำลังโหลด...</span>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 gap-2 text-japandi-400">
+                    <ClipboardList size={36} className="opacity-30" />
+                    <p className="text-sm">ยังไม่มีรายการสั่งซื้อ</p>
+                    {canEdit && (
+                      <button onClick={openAddOrder} className="mt-2 flex items-center gap-2 bg-japandi-800 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-japandi-900">
+                        <Plus size={15} /> สร้างออเดอร์แรก
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <table className="w-full text-left text-sm min-w-[1120px]">
+                    <thead className="bg-japandi-50 text-japandi-600 border-b border-japandi-200 uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="px-4 py-4 font-bold">เลขที่ออเดอร์</th>
+                        <th className="px-4 py-4 font-bold">ลูกค้า</th>
+                        <th className="px-4 py-4 font-bold">รายการสินค้า</th>
+                        <th className="px-4 py-4 font-bold text-right">ยอดรวม</th>
+                        <th className="px-4 py-4 font-bold text-right">ส่วนลด</th>
+                        <th className="px-4 py-4 font-bold text-center">แต้มที่ได้</th>
+                        <th className="px-4 py-4 font-bold">หมายเหตุ</th>
+                        <th className="px-4 py-4 font-bold text-center">สถานะ</th>
+                        <th className="px-4 py-4 font-bold">วันที่</th>
+                        <th className="px-4 py-4 font-bold text-center">จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-japandi-100">
+                      {orders.map((o: any) => (
+                        <tr key={o.id} className="hover:bg-japandi-50/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className="font-mono font-bold text-xs text-japandi-800 uppercase">{o.order_ref}</span>
+                            {o.slip_verification_status && (
+                              <div className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                                o.slip_verification_status === 'verified'
+                                  ? 'bg-green-50 text-green-700 border-green-200'
+                                  : o.slip_verification_status === 'duplicate'
+                                    ? 'bg-red-50 text-red-700 border-red-200'
+                                    : o.slip_verification_status === 'suspicious'
+                                      ? 'bg-red-50 text-red-700 border-red-200'
+                                      : o.slip_verification_status === 'manual'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                        : 'bg-japandi-100 text-japandi-500 border-japandi-200'
+                              }`}>
+                                {o.slip_verification_status === 'verified'
+                                  ? 'SLIP OK'
+                                  : o.slip_verification_status === 'duplicate'
+                                    ? 'SLIP DUP'
+                                    : o.slip_verification_status === 'suspicious'
+                                      ? 'SLIP RISK'
+                                      : o.slip_verification_status === 'manual'
+                                        ? 'รอตรวจมือ'
+                                        : o.slip_verification_status}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-semibold text-sm">{o.user_name || '—'}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {(o.items || []).slice(0,2).map((it: any, i: number) => (
+                              <div key={i} className="text-xs text-japandi-600 truncate max-w-[160px]">{it.name} x{it.qty}</div>
+                            ))}
+                            {(o.items || []).length > 2 && <div className="text-[10px] text-japandi-400">+{o.items.length - 2} รายการ</div>}
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-japandi-900">
+                            ฿{Number(o.amount).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right text-xs font-semibold text-japandi-700">
+                            <div className="flex flex-col items-end gap-1">
+                              <span>
+                                {Number(o.discount || 0) > 0
+                                  ? `-฿${Number(o.discount).toLocaleString()}`
+                                  : '—'}
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${getOrderDiscountModeBadgeClass(o)}`}>
+                                {getOrderDiscountModeLabel(o)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                              getOrderPoints(o) > 0
+                                ? 'bg-japandi-sage/15 text-japandi-sage border-japandi-sage/30'
+                                : 'bg-japandi-100 text-japandi-400 border-japandi-200'
+                            }`}>
+                              +{getOrderPoints(o).toLocaleString()} pts
                             </span>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${getOrderDiscountModeBadgeClass(o)}`}>
-                              {getOrderDiscountModeLabel(o)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                            getOrderPoints(o) > 0
-                              ? 'bg-japandi-sage/15 text-japandi-sage border-japandi-sage/30'
-                              : 'bg-japandi-100 text-japandi-400 border-japandi-200'
-                          }`}>
-                            +{getOrderPoints(o).toLocaleString()} pts
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="max-w-[220px] truncate text-xs text-japandi-600" title={o.note || ''}>
-                            {o.note ? String(o.note).replace(/\s+/g, ' ').trim() : '—'}
-                          </p>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {canEdit ? (
-                            <select value={o.status}
-                              onChange={async e => {
-                                await api.setOrderStatus(o.id, e.target.value);
-                                await refreshOrderViews();
-                              }}
-                              className={`text-[10px] font-bold px-2 py-1 rounded-lg border cursor-pointer focus:outline-none ${
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="max-w-[220px] truncate text-xs text-japandi-600" title={o.note || ''}>
+                              {o.note ? String(o.note).replace(/\s+/g, ' ').trim() : '—'}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {canEdit ? (
+                              <select value={o.status}
+                                onChange={async e => {
+                                  await api.setOrderStatus(o.id, e.target.value);
+                                  await refreshOrderViews();
+                                }}
+                                className={`text-[10px] font-bold px-2 py-1 rounded-lg border cursor-pointer focus:outline-none ${
+                                  o.status === 'paid'    ? 'bg-green-50 text-green-700 border-green-200' :
+                                  o.status === 'cancel'  ? 'bg-red-50 text-red-600 border-red-200' :
+                                                           'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                <option value="pending">รอชำระ</option>
+                                <option value="paid">ชำระแล้ว</option>
+                                <option value="cancel">ยกเลิก</option>
+                              </select>
+                            ) : (
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                                 o.status === 'paid'    ? 'bg-green-50 text-green-700 border-green-200' :
                                 o.status === 'cancel'  ? 'bg-red-50 text-red-600 border-red-200' :
                                                          'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                              <option value="pending">รอชำระ</option>
-                              <option value="paid">ชำระแล้ว</option>
-                              <option value="cancel">ยกเลิก</option>
-                            </select>
-                          ) : (
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                              o.status === 'paid'    ? 'bg-green-50 text-green-700 border-green-200' :
-                              o.status === 'cancel'  ? 'bg-red-50 text-red-600 border-red-200' :
-                                                       'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                              {o.status === 'paid' ? 'ชำระแล้ว' : o.status === 'cancel' ? 'ยกเลิก' : 'รอชำระ'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-japandi-500 text-xs">
-                          {new Date(o.ordered_at).toLocaleDateString('th-TH', { dateStyle: 'short' })}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {canEdit ? (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button onClick={() => openEditOrder(o)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-japandi-100 hover:bg-japandi-200 text-japandi-600">
-                                <Pencil size={12} />
-                              </button>
-                              <button onClick={() => setConfirmDeleteOrder(o)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-400">
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] font-semibold text-japandi-400">อ่านอย่างเดียว</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                                {o.status === 'paid' ? 'ชำระแล้ว' : o.status === 'cancel' ? 'ยกเลิก' : 'รอชำระ'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-japandi-500 text-xs">
+                            {new Date(o.ordered_at).toLocaleDateString('th-TH', { dateStyle: 'short' })}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {canEdit ? (
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button onClick={() => openEditOrder(o)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-japandi-100 hover:bg-japandi-200 text-japandi-600">
+                                  <Pencil size={12} />
+                                </button>
+                                <button onClick={() => setConfirmDeleteOrder(o)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-400">
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-japandi-400">อ่านอย่างเดียว</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           )}
 
@@ -1732,6 +1984,10 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
               </div>
             )
           )}
+
+          {activeTab === 'payments' && (
+            <PaymentAccounts canEdit={canEdit} />
+          )}
         </div>
       </div>
 
@@ -1749,7 +2005,7 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
                 <div>
                   <h2 className="font-bold text-japandi-900 text-base">{modalMode === 'add' ? 'เพิ่มสมาชิกใหม่' : 'แก้ไขข้อมูลสมาชิก'}</h2>
                   <p className="text-[11px] text-japandi-500 uppercase tracking-widest font-semibold">
-                    {modalMode === 'add' ? 'New Member' : editingUser?.lineId}
+                    {modalMode === 'add' ? 'New Member' : editingUser?.customerCode || editingUser?.lineId}
                   </p>
                 </div>
               </div>
@@ -1759,6 +2015,20 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
             </div>
 
             <form id="member-edit-form" onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-japandi-600 uppercase tracking-widest">รหัสลูกค้า</label>
+                <input
+                  name="customerCode"
+                  value={form.customerCode}
+                  readOnly
+                  placeholder={modalMode === 'add' ? 'ระบบจะสร้างให้เมื่อบันทึก' : ''}
+                  className="w-full bg-japandi-100 border border-japandi-200 rounded-xl px-4 py-3 text-sm font-semibold text-japandi-800 focus:outline-none cursor-not-allowed"
+                />
+                <p className="text-[10px] font-medium text-japandi-400 leading-relaxed">
+                  {modalMode === 'add' ? 'รหัสลูกค้าจะถูกสร้างอัตโนมัติเมื่อบันทึกสมาชิกใหม่' : 'รหัสลูกค้าสามารถใช้ค้นหาและอ้างอิงได้'}
+                </p>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-japandi-600 uppercase tracking-widest">Line ID <span className="text-red-400">*</span></label>
                 <input name="lineId" value={form.lineId} onChange={handleFormChange} required placeholder="@line_username"
@@ -1877,6 +2147,45 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
               <button onClick={confirmInactive} disabled={statusLoading}
                 className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">
                 {statusLoading ? <Loader2 size={14} className="animate-spin" /> : null} ยืนยันระงับ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── CONFIRM DELETE USER ─── */}
+      {confirmDeleteUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setConfirmDeleteUser(null); setDeleteUserError(''); }} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm border border-japandi-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+                <Trash2 size={20} className="text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-japandi-900">ลบลูกค้า</h3>
+                <p className="text-xs text-japandi-500">การดำเนินการนี้ลบข้อมูลลูกค้าและรายการที่เกี่ยวข้อง</p>
+              </div>
+            </div>
+            <p className="text-sm text-japandi-700 mb-4">
+              ต้องการลบ <span className="font-bold text-japandi-900">{confirmDeleteUser.name}</span>
+              {confirmDeleteUser.customerCode ? <span className="text-japandi-500"> ({confirmDeleteUser.customerCode})</span> : null}
+              ใช่ไหม?
+              <br /><span className="text-xs text-japandi-400 mt-1 block">ออเดอร์ / แต้ม / คำขอแลกแต้มของลูกค้าคนนี้จะถูกลบตามไปด้วย</span>
+            </p>
+            {deleteUserError && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                {deleteUserError}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => { setConfirmDeleteUser(null); setDeleteUserError(''); }}
+                className="flex-1 py-2.5 border border-japandi-200 text-japandi-700 rounded-xl text-sm font-semibold hover:bg-japandi-50">
+                ยกเลิก
+              </button>
+              <button onClick={handleDeleteUser} disabled={deleteUserLoading}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">
+                {deleteUserLoading ? <Loader2 size={14} className="animate-spin" /> : null} ยืนยันลบ
               </button>
             </div>
           </div>

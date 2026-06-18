@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-export type CompanyCode = 'DENE' | 'Kefera';
+export type CompanyCode = 'DENE' | 'KEFERA';
 
 export interface CompanyConfig {
   code: CompanyCode;
@@ -27,7 +27,7 @@ const DENE: CompanyConfig = {
 };
 
 const KEFERA: CompanyConfig = {
-  code: 'Kefera',
+  code: 'KEFERA',
   id: 2,
   label: 'Kefera',
   liffId: readEnv('VITE_LIFF_ID_KEFERA'),
@@ -38,15 +38,21 @@ const KEFERA: CompanyConfig = {
 
 export const COMPANY_CONFIGS: Record<CompanyCode, CompanyConfig> = {
   DENE,
-  Kefera: KEFERA,
+  KEFERA,
 };
 
 export const COMPANY_LIST: CompanyConfig[] = [DENE, KEFERA];
 
 export function normalizeCompanyCode(value?: string | null): CompanyCode {
   const normalized = String(value || '').trim().toLowerCase();
-  if (normalized === 'kefera') return 'Kefera';
+  if (normalized === 'kefera') return 'KEFERA';
   return 'DENE';
+}
+
+// True only for real company codes (used to reject typo'd URLs like /kerfera instead of defaulting).
+export function isKnownCompanyCode(value?: string | null): boolean {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'dene' || normalized === 'kefera';
 }
 
 export function getCompanyByCode(value?: string | null): CompanyConfig {
@@ -86,7 +92,7 @@ export function isCompanyPath(pathname: string) {
 }
 
 export function getCompanyThemeStyle(company = getCurrentCompany()): CSSProperties {
-  if (company.code !== 'Kefera') return {};
+  if (company.code !== 'KEFERA') return {};
 
   return {
     backgroundColor: '#f8efe6',
@@ -118,7 +124,7 @@ export function getCompanyDocumentTitle(pathname = typeof window !== 'undefined'
 
   if (isCompanyPath(normalizedPath)) {
     const company = getCompanyFromPathname(normalizedPath);
-    return company.code === 'Kefera' ? 'Kefera CRM' : 'Dene CRM';
+    return company.code === 'KEFERA' ? 'Kefera CRM' : 'Dene CRM';
   }
 
   return 'Dene / Kefera';

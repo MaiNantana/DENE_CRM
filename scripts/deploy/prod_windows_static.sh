@@ -167,6 +167,9 @@ cp -r "$REPO_ROOT/dist/." "$LOCAL_STAGE_DIR/dist/"
 cp -r "$REPO_ROOT/server" "$LOCAL_STAGE_DIR/"
 cp "$REPO_ROOT/web.config" "$LOCAL_STAGE_DIR/"
 cp "$REPO_ROOT/scripts/deploy/windows_static_apply.ps1" "$LOCAL_STAGE_DIR/"
+if [[ -f "$REPO_ROOT/.env.local" ]]; then
+  cp "$REPO_ROOT/.env.local" "$LOCAL_STAGE_DIR/.env.local"
+fi
 find "$LOCAL_STAGE_DIR" -maxdepth 3 -type f | sort
 echo
 

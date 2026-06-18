@@ -15,6 +15,7 @@ View your app in AI Studio: https://ai.studio/apps/2d22ba7a-4b02-4a36-8885-d794e
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Set the `OPENAI_API_KEY` in [.env.local](.env.local) to your OpenAI API key
+   Optional: set `OPENAI_SLIP_MODEL=gpt-5.2` and `OPENAI_SLIP_REASONING_EFFORT=medium` for higher slip-reading accuracy
 3. Run the app:
    `npm run dev`

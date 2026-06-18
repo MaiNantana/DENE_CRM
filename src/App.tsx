@@ -1,6 +1,7 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowRight, Building2, LayoutDashboard, Smartphone } from 'lucide-react';
 import { buildCompanyPath, COMPANY_LIST, getCompanyByCode, getCompanyThemeStyle, normalizeCompanyCode, type CompanyConfig } from './lib/company';
+import LiffEntry from './pages/liff/LiffEntry';
 
 function CompanyQuickLink({
   company,
@@ -117,6 +118,7 @@ function CompanyEntryCard({ company }: { company: CompanyConfig }) {
 
 export default function App() {
   const params = useParams();
+  const location = useLocation();
   const rawCompanyCode = String(params.companyCode || '').trim();
   const normalizedCode = normalizeCompanyCode(rawCompanyCode);
   const hasCompanyPath = Boolean(rawCompanyCode) && rawCompanyCode.toLowerCase() === normalizedCode.toLowerCase();
@@ -124,6 +126,11 @@ export default function App() {
   const themeStyle = company ? getCompanyThemeStyle(company) : undefined;
   const keferaQuickLinkTone = 'bg-[#8b5e3c]';
   const keferaQuickLinkSoftTone = 'bg-[#a8734d]';
+  const hasLiffState = new URLSearchParams(location.search).has('liff.state');
+
+  if (company && hasLiffState) {
+    return <LiffEntry />;
+  }
 
   return (
     <div
@@ -205,7 +212,7 @@ export default function App() {
                       icon={LayoutDashboard}
                       title="Admin"
                       text="จัดการสมาชิก ออเดอร์ โปรโมชั่น และทีมงาน"
-                      tone={item.code === 'Kefera' ? keferaQuickLinkTone : 'bg-japandi-800'}
+                      tone={item.code === 'KEFERA' ? keferaQuickLinkTone : 'bg-japandi-800'}
                     />
                     <CompanyQuickLink
                       company={item}
@@ -213,7 +220,7 @@ export default function App() {
                       icon={Smartphone}
                       title="LINE Member"
                       text="สมัครสมาชิก ส่งสลิป และดูบัตรสมาชิก"
-                      tone={item.code === 'Kefera' ? keferaQuickLinkSoftTone : 'bg-[#06c755]'}
+                      tone={item.code === 'KEFERA' ? keferaQuickLinkSoftTone : 'bg-[#06c755]'}
                     />
                   </div>
                 </div>

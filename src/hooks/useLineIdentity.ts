@@ -15,6 +15,10 @@ function normalizeLiffError(err: unknown) {
     return 'LIFF endpoint ยังไม่ตรงกับ URL ปัจจุบัน หรือยังไม่ได้ตั้งค่าเป็น https';
   }
 
+  if (/invalid_request/i.test(message) || /bad request/i.test(message) || /access[_\s-]?token/i.test(message)) {
+    return 'LIFF พบปัญหาการเชื่อมต่อ กำลังพยายามเข้าสู่ระบบใหม่';
+  }
+
   if (/login/i.test(message) || /access_token/i.test(message)) {
     return 'กรุณาเปิดผ่าน LINE หรือเข้าสู่ระบบ LIFF ใหม่อีกครั้ง';
   }

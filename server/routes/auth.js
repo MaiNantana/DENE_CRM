@@ -38,6 +38,35 @@ router.get('/me', requireAuth, aw(async (req, res) => {
   res.json({ user: sanitizeStaff(req.staff) });
 }));
 
+router.post('/me/password', requireAuth, aw(async (req, res) => {
+  const currentPassword = String(req.body.currentPassword || '');
+  const newPassword = String(req.body.newPassword || '').trim();
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'กรุณากรอกรหัสผ่านปัจจุบันและรหัสผ่านใหม่' });
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'รหัสผ่านใหม่ควรมีอย่างน้อย 8 ตัวอักษร' });
+  }
+
+  const [[staff]] = await db.query(
+    'SELECT id, company_id, password_hash FROM staff_accounts WHERE id=? AND company_id=? LIMIT 1',
+    [req.staff.id, getCompanyId(req)]
+  );
+
+  if (!staff || !verifyPassword(currentPassword, staff.password_hash)) {
+    return res.status(401).json({ error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' });
+  }
+
+  await db.query(
+    'UPDATE staff_accounts SET password_hash=? WHERE id=? AND company_id=?',
+    [hashPassword(newPassword), req.staff.id, getCompanyId(req)]
+  );
+
+  res.json({ ok: true });
+}));
+
 router.post('/login', aw(async (req, res) => {
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');

@@ -4,6 +4,43 @@ import { getCurrentCompany } from './company';
 let initPromise: Promise<void> | null = null;
 let initCompanyCode = '';
 
+function getLoginRedirectUri() {
+  if (typeof window === 'undefined') return '';
+  return window.location.href;
+}
+
+function isRecoverableLiffError(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err || '');
+  const code = typeof err === 'object' && err && 'code' in err ? String((err as { code?: unknown }).code || '') : '';
+  return /invalid_request/i.test(code) || /invalid_request|bad request|access[_\s-]?token/i.test(message);
+}
+
+function isLiffBrowser() {
+  try {
+    return typeof liff.isInClient === 'function' ? liff.isInClient() : false;
+  } catch {
+    return false;
+  }
+}
+
+function recoverLiffSession() {
+  const redirectUri = getLoginRedirectUri();
+  if (!redirectUri) return false;
+
+  if (isLiffBrowser()) {
+    return false;
+  }
+
+  try {
+    liff.logout();
+  } catch {
+    // Ignore logout failures and proceed to login fallback.
+  }
+
+  liff.login({ redirectUri });
+  return true;
+}
+
 function getActiveLiffId() {
   const company = getCurrentCompany();
   return company.liffId?.trim() || import.meta.env.VITE_LIFF_ID?.trim() || '';
@@ -15,6 +52,20 @@ export function hasLiffId() {
 
 export function getLiffId() {
   return getActiveLiffId();
+}
+
+// Best-effort LINE display name (for naming a walk-in / guest record). Returns '' if unavailable.
+export async function getLineDisplayName() {
+  const liffId = getActiveLiffId();
+  if (!liffId) return '';
+  try {
+    await ensureLiffInitialized(liffId);
+    if (!liff.isLoggedIn() && !isLiffBrowser()) return '';
+    const profile = await liff.getProfile();
+    return profile.displayName?.trim() || '';
+  } catch {
+    return '';
+  }
 }
 
 export async function initializeLiff() {
@@ -38,6 +89,9 @@ async function ensureLiffInitialized(liffId: string) {
       withLoginOnExternalBrowser: true,
     }).catch(err => {
       initPromise = null;
+      if (isRecoverableLiffError(err) && recoverLiffSession()) {
+        return new Promise<void>(() => {});
+      }
       throw err;
     });
   }
@@ -84,7 +138,9 @@ export async function resolveLineUserId(fallbackLineId = '') {
   }
 
   if (!liff.isLoggedIn()) {
-    liff.login({ redirectUri: window.location.href });
+    if (!isLiffBrowser()) {
+      liff.login({ redirectUri: getLoginRedirectUri() });
+    }
     return { lineId: fallback, isAuto: false };
   }
 
@@ -95,6 +151,9 @@ export async function resolveLineUserId(fallbackLineId = '') {
       return { lineId: userId, isAuto: true };
     }
   } catch (err) {
+    if (isRecoverableLiffError(err) && recoverLiffSession()) {
+      await new Promise<void>(() => {});
+    }
     if (fallback) {
       return { lineId: fallback, isAuto: false };
     }

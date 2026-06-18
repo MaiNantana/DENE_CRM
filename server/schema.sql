@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
 CREATE TABLE IF NOT EXISTS users (
   id           VARCHAR(36)   NOT NULL DEFAULT (UUID()),
   company_id   TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  customer_code VARCHAR(30)   NOT NULL,
   line_id      VARCHAR(100)  NOT NULL,
   name         VARCHAR(200)  NOT NULL,
   phone        VARCHAR(20)   NULL,
@@ -55,11 +56,13 @@ CREATE TABLE IF NOT EXISTS users (
   birthday     DATE          NULL,
   tier         ENUM('Standard','Silver','Gold','Platinum') NOT NULL DEFAULT 'Standard',
   tier_expires_at DATETIME   NULL,
+  is_member    TINYINT(1)    NOT NULL DEFAULT 1,
   points       INT           NOT NULL DEFAULT 0,
   total_spent  DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   joined_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  UNIQUE KEY uq_user_company_customer_code (company_id, customer_code),
   UNIQUE KEY uq_user_company_line_id (company_id, line_id),
   KEY idx_user_company_tier (company_id, tier),
   KEY idx_user_company_points (company_id, points)
@@ -71,6 +74,23 @@ CREATE TABLE IF NOT EXISTS company_settings (
   point_expiry_days  INT            NOT NULL DEFAULT 365,
   updated_at         DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (company_id)
+) ENGINE=InnoDB;
+
+-- บัญชีรับเงินของร้าน (แสดง/อ้างอิงเท่านั้น — ไม่ใช้ตรวจสลิปอัตโนมัติ)
+CREATE TABLE IF NOT EXISTS payment_accounts (
+  id             VARCHAR(36)   NOT NULL DEFAULT (UUID()),
+  company_id     TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  bank           VARCHAR(100)  NOT NULL,
+  account_name   VARCHAR(200)  NOT NULL,
+  account_number VARCHAR(50)   NULL,
+  promptpay      VARCHAR(50)   NULL,
+  note           VARCHAR(255)  NULL,
+  is_active      TINYINT(1)    NOT NULL DEFAULT 1,
+  sort_order     INT           NOT NULL DEFAULT 0,
+  created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_payment_company_active (company_id, is_active)
 ) ENGINE=InnoDB;
 
 -- สินค้า
@@ -116,6 +136,12 @@ CREATE TABLE IF NOT EXISTS orders (
   discount_mode ENUM('manual','member') NOT NULL DEFAULT 'manual',
   points_earned INT            NOT NULL DEFAULT 0,
   slip_url      VARCHAR(500)   NULL,
+  slip_fingerprint VARCHAR(64) NULL,
+  slip_reference_number VARCHAR(120) NULL,
+  slip_bank     VARCHAR(100)   NULL,
+  slip_transaction_date DATE   NULL,
+  slip_transaction_time VARCHAR(20) NULL,
+  slip_verification_status ENUM('manual','verified','uncertain','suspicious','duplicate') NOT NULL DEFAULT 'manual',
   status        ENUM('pending','paid','cancel') NOT NULL DEFAULT 'pending',
   note          TEXT           NULL,
   ordered_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -125,6 +151,8 @@ CREATE TABLE IF NOT EXISTS orders (
   KEY idx_order_company_user (company_id, user_id),
   KEY idx_order_company_status (company_id, status),
   KEY idx_order_company_ordered_at (company_id, ordered_at),
+  KEY idx_order_company_slip_fingerprint (company_id, slip_fingerprint),
+  KEY idx_order_company_slip_reference (company_id, slip_reference_number),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -162,6 +190,34 @@ CREATE TABLE IF NOT EXISTS point_transactions (
   KEY idx_pt_company_type (company_id, type),
   KEY idx_pt_company_expiry (company_id, user_id, expires_at),
   CONSTRAINT fk_pt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ประวัติการตรวจสลิป / เหตุการณ์สลิปซ้ำและน่าสงสัย
+CREATE TABLE IF NOT EXISTS slip_review_logs (
+  id                  VARCHAR(36)    NOT NULL DEFAULT (UUID()),
+  company_id          TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  analysis_id         VARCHAR(64)    NOT NULL,
+  user_id             VARCHAR(36)    NULL,
+  line_id             VARCHAR(100)   NULL,
+  source              ENUM('analyze','order') NOT NULL DEFAULT 'analyze',
+  status              ENUM('verified','uncertain','suspicious','duplicate','manual') NOT NULL DEFAULT 'manual',
+  amount              DECIMAL(12,2)  NULL,
+  bank                VARCHAR(100)   NULL,
+  reference_number    VARCHAR(120)   NULL,
+  slip_fingerprint    VARCHAR(64)    NULL,
+  slip_transaction_date DATE         NULL,
+  slip_transaction_time VARCHAR(20)  NULL,
+  duplicate_order_id  VARCHAR(36)    NULL,
+  duplicate_order_ref VARCHAR(50)    NULL,
+  reason              VARCHAR(300)   NULL,
+  created_at          DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_slip_review_company_analysis (company_id, analysis_id),
+  KEY idx_slip_review_company_status (company_id, status, created_at),
+  KEY idx_slip_review_company_user (company_id, user_id, created_at),
+  KEY idx_slip_review_company_fingerprint (company_id, slip_fingerprint),
+  KEY idx_slip_review_company_reference (company_id, reference_number),
+  CONSTRAINT fk_slip_review_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- การแลกโปรโมชั่น
