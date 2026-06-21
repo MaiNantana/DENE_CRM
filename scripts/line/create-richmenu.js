@@ -18,25 +18,62 @@ import https  from 'node:https';
 import fs     from 'node:fs';
 import path   from 'node:path';
 import { fileURLToPath } from 'node:url';
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import sharp from 'sharp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..', '..');
+
+// Load .env first, then let .env.local override it (that's where the real secrets live).
+dotenv.config({ path: path.join(ROOT, '.env') });
+dotenv.config({ path: path.join(ROOT, '.env.local'), override: true });
 
 // ─── Config ──────────────────────────────────────────
-const TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || process.argv[2];
-const LIFF_ID = process.env.VITE_LIFF_ID || process.env.LIFF_ID || process.argv[3] || '';
+const SLUG = (process.env.RICHMENU_SLUG || 'dene').toLowerCase().replace(/[^a-z0-9]/g, '');
+const SUFFIX = SLUG.toUpperCase(); // DENE / KEFERA — used to pick per-company secrets
+
+// Per-company secrets fall back to the generic name (or argv) so old invocations keep working.
+const TOKEN = process.env[`LINE_CHANNEL_ACCESS_TOKEN_${SUFFIX}`] || process.env.LINE_CHANNEL_ACCESS_TOKEN || process.argv[2];
+const LIFF_ID = process.env[`VITE_LIFF_ID_${SUFFIX}`] || process.env.VITE_LIFF_ID || process.env.LIFF_ID || process.argv[3] || '';
 const BASE_URL = (process.env.LIFF_BASE_URL || process.env.APP_URL || 'http://crm.serveftp.com').replace(/\/$/, '');
 const LIFF_WEB_PATH = '/liff';
 // Brand is parameterised so the same script builds menus for each company (DENE / KEFERA / ...).
 const BRAND = process.env.RICHMENU_BRAND || 'DENE CRM';
 const MENU_NAME = process.env.RICHMENU_NAME || `${BRAND} Menu`;
 const BAR_TEXT = process.env.RICHMENU_BAR_TEXT || 'เมนูสมาชิก';
-const SLUG = (process.env.RICHMENU_SLUG || 'dene').toLowerCase().replace(/[^a-z0-9]/g, '');
 const PNG_PATH = path.join(__dirname, `richmenu-${SLUG}.png`);
 const SVG_PATH = path.join(__dirname, `richmenu-${SLUG}.svg`);
 
-if (!TOKEN) {
+// ─── Brand themes ─────────────────────────────────────
+// Each company keeps its own palette so the rich menu matches its web admin.
+// DENE — deep sage/green. KEFERA — warm espresso/cream "japandi" (matches getCompanyThemeStyle).
+const THEMES = {
+  dene: {
+    bgFrom: '#253728', bgMid: '#2f4330', bgTo: '#1f2d21',
+    light: '#f4efe6',     // cream used for panels / decorative strokes
+    accent: '#d9d0bf',    // secondary line accent
+    brandFill: '#f7f1e8',
+    titleFill: '#fffdf7',
+    subFill: '#e8dfcf',
+    labelFill: '#f7f1e8',
+  },
+  kefera: {
+    bgFrom: '#5a3826', bgMid: '#4a2d1e', bgTo: '#3a2317', // japandi-900 espresso range
+    light: '#f8efe6',     // japandi cream background tone
+    accent: '#d8b28d',    // japandi sage
+    brandFill: '#f8eadf', // japandi-100
+    titleFill: '#fff9f4', // japandi-50
+    subFill: '#edd7c4',   // japandi-200
+    labelFill: '#f0dccb', // soft accent
+  },
+};
+const THEME = THEMES[SLUG] || THEMES.dene;
+
+// Render-only mode: rebuild the SVG/PNG locally without touching the LINE API (no token needed).
+//   RICHMENU_SLUG=kefera node scripts/line/create-richmenu.js --render-only
+const RENDER_ONLY = process.argv.includes('--render-only') || process.env.RICHMENU_RENDER_ONLY === '1';
+
+if (!TOKEN && !RENDER_ONLY) {
   console.error('❌  กรุณาตั้งค่า LINE_CHANNEL_ACCESS_TOKEN\n');
   console.error('   ตัวอย่าง:');
   console.error('   LINE_CHANNEL_ACCESS_TOKEN=your_token node scripts/line/create-richmenu.js\n');
@@ -112,25 +149,26 @@ function lineApi(method, path, body, isData = false) {
 
 // ─── Generate rich menu image (PNG) ───────────────────
 function buildRichMenuSvg() {
+  const { bgFrom, bgMid, bgTo, light, accent, brandFill, titleFill, subFill, labelFill } = THEME;
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="2500" height="1686" viewBox="0 0 2500 1686">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#253728"/>
-      <stop offset="55%" stop-color="#2f4330"/>
-      <stop offset="100%" stop-color="#1f2d21"/>
+      <stop offset="0%" stop-color="${bgFrom}"/>
+      <stop offset="55%" stop-color="${bgMid}"/>
+      <stop offset="100%" stop-color="${bgTo}"/>
     </linearGradient>
     <linearGradient id="panelLeft" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f4efe6" stop-opacity="0.10"/>
-      <stop offset="100%" stop-color="#f4efe6" stop-opacity="0.04"/>
+      <stop offset="0%" stop-color="${light}" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="${light}" stop-opacity="0.04"/>
     </linearGradient>
     <linearGradient id="panelCenter" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f4efe6" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#f4efe6" stop-opacity="0.03"/>
+      <stop offset="0%" stop-color="${light}" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="${light}" stop-opacity="0.03"/>
     </linearGradient>
     <linearGradient id="panelRight" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f4efe6" stop-opacity="0.11"/>
-      <stop offset="100%" stop-color="#f4efe6" stop-opacity="0.04"/>
+      <stop offset="0%" stop-color="${light}" stop-opacity="0.11"/>
+      <stop offset="100%" stop-color="${light}" stop-opacity="0.04"/>
     </linearGradient>
     <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
       <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000000" flood-opacity="0.18"/>
@@ -139,24 +177,24 @@ function buildRichMenuSvg() {
       .brand {
         font-family: "Noto Sans Thai", "Tahoma", "Arial", sans-serif;
         font-weight: 700;
-        fill: #f7f1e8;
+        fill: ${brandFill};
         letter-spacing: 0.28em;
       }
       .title {
         font-family: "Noto Sans Thai", "Tahoma", "Arial", sans-serif;
         font-weight: 700;
-        fill: #fffdf7;
+        fill: ${titleFill};
       }
       .sub {
         font-family: "Noto Sans Thai", "Tahoma", "Arial", sans-serif;
         font-weight: 400;
-        fill: #e8dfcf;
+        fill: ${subFill};
         opacity: 0.88;
       }
       .label {
         font-family: "Noto Sans Thai", "Tahoma", "Arial", sans-serif;
         font-weight: 700;
-        fill: #f7f1e8;
+        fill: ${labelFill};
         opacity: 0.72;
         letter-spacing: 0.18em;
       }
@@ -164,10 +202,10 @@ function buildRichMenuSvg() {
   </defs>
 
   <rect width="2500" height="1686" fill="url(#bg)"/>
-  <circle cx="2300" cy="260" r="240" fill="#f4efe6" opacity="0.06"/>
-  <circle cx="180" cy="1480" r="260" fill="#f4efe6" opacity="0.05"/>
-  <circle cx="540" cy="240" r="120" fill="#f4efe6" opacity="0.05"/>
-  <circle cx="1940" cy="1330" r="180" fill="#f4efe6" opacity="0.04"/>
+  <circle cx="2300" cy="260" r="240" fill="${light}" opacity="0.06"/>
+  <circle cx="180" cy="1480" r="260" fill="${light}" opacity="0.05"/>
+  <circle cx="540" cy="240" r="120" fill="${light}" opacity="0.05"/>
+  <circle cx="1940" cy="1330" r="180" fill="${light}" opacity="0.04"/>
 
   <rect x="0" y="0" width="833" height="1686" fill="url(#panelLeft)" filter="url(#softShadow)"/>
   <rect x="833" y="0" width="834" height="1686" fill="url(#panelCenter)" filter="url(#softShadow)"/>
@@ -180,63 +218,64 @@ function buildRichMenuSvg() {
   <text x="1250" y="170" class="sub" font-size="26" text-anchor="middle">เปิดเมนูสมาชิกได้ในครั้งเดียว</text>
 
   <g transform="translate(0 0)">
-    <rect x="56" y="280" width="721" height="1020" rx="54" fill="#f4efe6" opacity="0.04" stroke="#f4efe6" stroke-opacity="0.16"/>
+    <rect x="56" y="280" width="721" height="1020" rx="54" fill="${light}" opacity="0.04" stroke="${light}" stroke-opacity="0.16"/>
     <text x="416" y="360" class="label" font-size="22" text-anchor="middle">01</text>
-    <circle cx="416" cy="560" r="132" fill="none" stroke="#f4efe6" stroke-opacity="0.25" stroke-width="18"/>
-    <circle cx="416" cy="510" r="56" fill="none" stroke="#f4efe6" stroke-width="16"/>
-    <path d="M310 710c22-92 84-144 106-144s84 52 106 144" fill="none" stroke="#f4efe6" stroke-width="16" stroke-linecap="round"/>
-    <path d="M520 438h72v72M556 402v144" fill="none" stroke="#d9d0bf" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="416" cy="560" r="132" fill="none" stroke="${light}" stroke-opacity="0.25" stroke-width="18"/>
+    <circle cx="416" cy="510" r="56" fill="none" stroke="${light}" stroke-width="16"/>
+    <path d="M310 710c22-92 84-144 106-144s84 52 106 144" fill="none" stroke="${light}" stroke-width="16" stroke-linecap="round"/>
+    <path d="M520 438h72v72M556 402v144" fill="none" stroke="${accent}" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
     <text x="416" y="930" class="title" font-size="78" text-anchor="middle">สมัครสมาชิก</text>
     <text x="416" y="1002" class="sub" font-size="34" text-anchor="middle">เปิดฟอร์มสมัครสมาชิก</text>
-    <path d="M240 1112h352" stroke="#f4efe6" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
-    <text x="416" y="1188" class="sub" font-size="25" text-anchor="middle">เริ่มใช้งาน DENE CRM</text>
+    <path d="M240 1112h352" stroke="${light}" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
+    <text x="416" y="1188" class="sub" font-size="25" text-anchor="middle">เริ่มใช้งาน ${BRAND}</text>
   </g>
 
   <g transform="translate(833 0)">
-    <rect x="56" y="280" width="722" height="1020" rx="54" fill="#f4efe6" opacity="0.05" stroke="#f4efe6" stroke-opacity="0.16"/>
+    <rect x="56" y="280" width="722" height="1020" rx="54" fill="${light}" opacity="0.05" stroke="${light}" stroke-opacity="0.16"/>
     <text x="417" y="360" class="label" font-size="22" text-anchor="middle">02</text>
-    <rect x="272" y="408" width="290" height="400" rx="44" fill="none" stroke="#f4efe6" stroke-opacity="0.28" stroke-width="18"/>
-    <path d="M417 500v122" fill="none" stroke="#f4efe6" stroke-width="18" stroke-linecap="round"/>
-    <path d="M367 560l50-50 50 50" fill="none" stroke="#f4efe6" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="326" y="660" width="182" height="58" rx="22" fill="#f4efe6" opacity="0.12"/>
-    <path d="M332 452h170" stroke="#d9d0bf" stroke-opacity="0.75" stroke-width="14" stroke-linecap="round"/>
-    <path d="M332 720h170" stroke="#d9d0bf" stroke-opacity="0.65" stroke-width="14" stroke-linecap="round"/>
+    <rect x="272" y="408" width="290" height="400" rx="44" fill="none" stroke="${light}" stroke-opacity="0.28" stroke-width="18"/>
+    <path d="M417 500v122" fill="none" stroke="${light}" stroke-width="18" stroke-linecap="round"/>
+    <path d="M367 560l50-50 50 50" fill="none" stroke="${light}" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="326" y="660" width="182" height="58" rx="22" fill="${light}" opacity="0.12"/>
+    <path d="M332 452h170" stroke="${accent}" stroke-opacity="0.75" stroke-width="14" stroke-linecap="round"/>
+    <path d="M332 720h170" stroke="${accent}" stroke-opacity="0.65" stroke-width="14" stroke-linecap="round"/>
     <text x="417" y="930" class="title" font-size="78" text-anchor="middle">ส่งสลิป</text>
     <text x="417" y="1002" class="sub" font-size="34" text-anchor="middle">อัปโหลดหลักฐานการโอน</text>
-    <path d="M241 1112h352" stroke="#f4efe6" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
+    <path d="M241 1112h352" stroke="${light}" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
     <text x="417" y="1188" class="sub" font-size="25" text-anchor="middle">รอตรวจสอบจากแอดมิน</text>
   </g>
 
   <g transform="translate(1667 0)">
-    <rect x="56" y="280" width="721" height="1020" rx="54" fill="#f4efe6" opacity="0.05" stroke="#f4efe6" stroke-opacity="0.16"/>
+    <rect x="56" y="280" width="721" height="1020" rx="54" fill="${light}" opacity="0.05" stroke="${light}" stroke-opacity="0.16"/>
     <text x="417" y="360" class="label" font-size="22" text-anchor="middle">03</text>
-    <rect x="250" y="414" width="334" height="300" rx="38" fill="none" stroke="#f4efe6" stroke-opacity="0.28" stroke-width="18"/>
-    <path d="M278 486h278M278 548h220M278 610h170" stroke="#f4efe6" stroke-width="14" stroke-linecap="round" stroke-opacity="0.9"/>
-    <circle cx="545" cy="610" r="40" fill="none" stroke="#d9d0bf" stroke-width="16"/>
-    <path d="M525 610h40M545 590v40" stroke="#d9d0bf" stroke-width="14" stroke-linecap="round"/>
-    <rect x="342" y="772" width="150" height="48" rx="18" fill="#f4efe6" opacity="0.12"/>
+    <rect x="250" y="414" width="334" height="300" rx="38" fill="none" stroke="${light}" stroke-opacity="0.28" stroke-width="18"/>
+    <path d="M278 486h278M278 548h220M278 610h170" stroke="${light}" stroke-width="14" stroke-linecap="round" stroke-opacity="0.9"/>
+    <circle cx="545" cy="610" r="40" fill="none" stroke="${accent}" stroke-width="16"/>
+    <path d="M525 610h40M545 590v40" stroke="${accent}" stroke-width="14" stroke-linecap="round"/>
+    <rect x="342" y="772" width="150" height="48" rx="18" fill="${light}" opacity="0.12"/>
     <text x="417" y="930" class="title" font-size="78" text-anchor="middle">บัตรสมาชิก</text>
     <text x="417" y="1002" class="sub" font-size="34" text-anchor="middle">ดูแต้มและระดับสมาชิก</text>
-    <path d="M241 1112h352" stroke="#f4efe6" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
+    <path d="M241 1112h352" stroke="${light}" stroke-opacity="0.25" stroke-width="8" stroke-linecap="round"/>
     <text x="417" y="1188" class="sub" font-size="25" text-anchor="middle">เช็กสิทธิ์ของคุณได้ทันที</text>
   </g>
 </svg>`;
 }
 
 async function generateOrLoadImage() {
-  if (fs.existsSync(PNG_PATH)) {
-    console.log('📷  ใช้รูปจาก scripts/line/richmenu.png');
+  // Skip the cache when rendering on purpose so theme changes always take effect.
+  if (!RENDER_ONLY && fs.existsSync(PNG_PATH)) {
+    console.log(`📷  ใช้รูปจาก ${path.basename(PNG_PATH)}`);
     return fs.readFileSync(PNG_PATH);
   }
 
   console.log('🎨  กำลัง generate รูป Rich Menu...');
   const svg = buildRichMenuSvg().trim();
   fs.writeFileSync(SVG_PATH, svg);
-  console.log('💾  บันทึก SVG template ไว้ที่ scripts/line/richmenu-template.svg');
+  console.log(`💾  บันทึก SVG ไว้ที่ ${path.basename(SVG_PATH)}`);
 
   const png = await sharp(Buffer.from(svg)).png().toBuffer();
   fs.writeFileSync(PNG_PATH, png);
-  console.log('✅  สร้าง PNG ไว้ที่ scripts/line/richmenu.png');
+  console.log(`✅  สร้าง PNG ไว้ที่ ${path.basename(PNG_PATH)}`);
   return png;
 }
 
@@ -244,9 +283,18 @@ async function generateOrLoadImage() {
 async function main() {
   console.log('🚀  DENE CRM — LINE Rich Menu Creator');
   console.log('━'.repeat(50));
+  console.log(`🏷️   Brand: ${BRAND} (theme: ${THEMES[SLUG] ? SLUG : 'dene (fallback)'})`);
   console.log(`📡  Base URL: ${BASE_URL}`);
   console.log(`🔗  LIFF URL mode: ${LIFF_ID ? `enabled (${LIFF_ID})` : 'disabled'}`);
   console.log();
+
+  if (RENDER_ONLY) {
+    console.log('🖼️   Render-only mode — สร้างรูปอย่างเดียว (ไม่เรียก LINE API)\n');
+    await generateOrLoadImage();
+    console.log('\n🎉  เสร็จเรียบร้อย! ตรวจรูปได้ที่:');
+    console.log(`    ${PNG_PATH}`);
+    return;
+  }
 
   // 1. Create Rich Menu
   console.log('1️⃣   สร้าง Rich Menu...');
