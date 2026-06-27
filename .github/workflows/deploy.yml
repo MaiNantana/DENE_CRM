@@ -1,0 +1,52 @@
+# CD — deploy ขึ้น production โดยเรียก deploy script เดิม (scripts/deploy/prod_windows_static.sh)
+# ทำงานเมื่อ: push/merge เข้า main  หรือ  กดปุ่ม Run workflow เองใน Actions tab
+name: Deploy to production
+
+on:
+  push:
+    branches: [main]      # merge เข้า main = deploy อัตโนมัติ
+  workflow_dispatch:      # + ปุ่มกด deploy เอง (manual)
+
+# กัน deploy ซ้อนกัน: ถ้ามีตัวกำลังรันอยู่ ตัวใหม่จะรอ (ไม่ cancel ของเดิมกลางคัน)
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # ⚠️ ต้องเป็น self-hosted runner บน "Windows + Git Bash" ที่ IP ถูก whitelist ให้เข้า SSH(22)
+    # ของ server (13.55.200.177) ได้ — เพราะ deploy script ใช้ ssh/scp + cygpath ผ่าน Git Bash
+    runs-on: [self-hosted, Windows]
+
+    # ผูกกับ GitHub Environment ชื่อ production → ตั้ง Required reviewers ได้ใน repo Settings
+    # > Environments เพื่อบังคับกดอนุมัติก่อน deploy จริง (จะตั้งหรือไม่ก็ได้)
+    environment: production
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ไม่ใช้ actions/setup-node บน self-hosted — เครื่องมี Node อยู่แล้ว แค่ยืนยันว่ามี
+      - name: Verify Node & npm
+        shell: cmd
+        run: |
+          node -v
+          npm -v
+
+      - name: Install deps
+        shell: cmd
+        run: npm ci
+
+      # deploy script จะ build เอง (vite) → upload ผ่าน ssh → deploy dist/ + server/ + web.config
+      # ลง IIS/iisnode ที่ C:\Program Files\iisnode\www\crm แล้วตรวจ URL ปลายทาง
+      #
+      # ⚠️ เรียก Git Bash ของเครื่อง runner ตรงๆ ผ่าน cmd — ห้ามใช้ `shell: bash`
+      # เพราะ runner จะ resolve `bash` ไปเจอ WSL bash ใน System32 (ไม่มี distro) แล้วพัง
+      - name: Deploy
+        shell: cmd
+        env:
+          DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}   # เก็บใน repo Secrets เท่านั้น
+          # override ได้ถ้าต้องการ เช่น:
+          # DEPLOY_HOST: crm.serveftp.com
+          # DEPLOY_USER: Administrator
+        run: '"E:\Program Files\Git\bin\bash.exe" -eo pipefail scripts/deploy/prod_windows_static.sh'

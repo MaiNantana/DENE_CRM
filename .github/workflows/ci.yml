@@ -1,0 +1,33 @@
+# CI — build + type-check ทุกครั้งที่เปิด PR หรือ push เข้า main (ไม่เกี่ยวกับ deploy)
+# เป้าหมาย: จับ error ตั้งแต่ก่อน merge
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest          # CI build รันบน Linux runner ฟรีของ GitHub
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      # type-check (tsc --noEmit) — จับ error TypeScript ก่อน
+      - name: Type check
+        run: npm run lint
+
+      # build frontend (Vite) → dist/
+      - name: Build
+        run: npm run build

@@ -64,10 +64,6 @@ export default function LiffRegister() {
               <span className="text-japandi-500">คะแนนเริ่มต้น</span>
               <span className="font-bold text-japandi-800">0 แต้ม</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-japandi-500">Line ID</span>
-              <span className="font-bold text-japandi-800">{createdUser?.line_id}</span>
-            </div>
           </div>
 
           <button onClick={() => { window.location.href = buildCompanyPath('/liff/member'); }}
