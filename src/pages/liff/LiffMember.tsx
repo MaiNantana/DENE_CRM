@@ -105,20 +105,36 @@ export default function LiffMember() {
     </LiffLayout>
   );
 
-  if (error) return (
-    <LiffLayout title="Member Card" subtitle={`${company.label} Member`}>
-      <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
-          <AlertCircle size={28} className="text-red-400" />
+  if (error) {
+    const isIdentityError = !error.toLowerCase().includes('membership') && !error.toLowerCase().includes('register');
+    return (
+      <LiffLayout title="Member Card" subtitle={`${company.label} Member`}>
+        <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
+            <AlertCircle size={28} className="text-red-400" />
+          </div>
+          <p className="text-japandi-700 font-semibold">{error}</p>
+          {isIdentityError ? (
+            <div className="flex flex-col gap-2 w-full max-w-xs">
+              <button onClick={() => window.location.reload()}
+                className="py-3 px-6 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900">
+                Try Again
+              </button>
+              <button onClick={() => { window.location.href = buildCompanyPath(`/liff/register${lineId ? `?lineId=${encodeURIComponent(lineId)}` : ''}`, company); }}
+                className="py-3 px-6 border border-japandi-300 text-japandi-700 rounded-2xl font-bold text-sm hover:bg-japandi-50">
+                Register New Account
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => { window.location.href = buildCompanyPath(`/liff/register${lineId ? `?lineId=${encodeURIComponent(lineId)}` : ''}`, company); }}
+              className="py-3 px-6 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900">
+              Register
+            </button>
+          )}
         </div>
-        <p className="text-japandi-700 font-semibold">{error}</p>
-        <button onClick={() => { window.location.href = buildCompanyPath(`/liff/register${lineId ? `?lineId=${encodeURIComponent(lineId)}` : ''}`, company); }}
-          className="py-3 px-6 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900">
-          Register
-        </button>
-      </div>
-    </LiffLayout>
-  );
+      </LiffLayout>
+    );
+  }
 
   const openRedeemModal = (promo: any) => {
     setSelectedPromo(promo);

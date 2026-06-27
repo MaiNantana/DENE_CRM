@@ -41,7 +41,11 @@ export default function LiffRegister() {
       setCreatedUser(user);
       setStep('success');
     } catch (err: any) {
-      setError(err.message?.includes('Duplicate') ? 'This LINE ID is already registered' : (err.message || 'Something went wrong. Please try again.'));
+      if (effectiveLineId && (err.message?.includes('already') || err.message?.includes('Duplicate'))) {
+        window.location.href = buildCompanyPath(`/liff/member?lineId=${encodeURIComponent(effectiveLineId)}`, company);
+        return;
+      }
+      setError(err.message || 'Something went wrong. Please try again.');
     } finally { setLoading(false); }
   };
 

@@ -103,6 +103,7 @@ export default function LiffEntry() {
 
   const handleMemberAction = async () => {
     let exists = memberExists;
+    const memberQuery = lineId ? `?lineId=${encodeURIComponent(lineId)}` : '';
 
     if (exists === null && lineId) {
       setMemberLookupLoading(true);
@@ -117,7 +118,10 @@ export default function LiffEntry() {
       }
     }
 
-    window.location.href = buildCompanyPath(exists ? '/liff/member' : '/liff/register', company);
+    window.location.href = buildCompanyPath(
+      exists ? `/liff/member${memberQuery}` : `/liff/register${memberQuery}`,
+      company,
+    );
   };
 
   if (target) {
