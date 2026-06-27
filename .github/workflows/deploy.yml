@@ -37,7 +37,13 @@ jobs:
         shell: cmd
         run: npm ci
 
-      # deploy script จะ build เอง (vite) → upload ผ่าน ssh → deploy dist/ + server/ + web.config
+      # build ที่นี่ (cmd env เดียวกับ npm ci ที่ทำงานได้) แทนที่จะให้ script build เอง — เพราะ
+      # การ build ผ่าน `cmd.exe /c` ซ้อนใน bash script ไม่สร้าง dist/ บน runner
+      - name: Build
+        shell: cmd
+        run: npm run build
+
+      # deploy script (--skip-build) → upload dist/ ที่ build ไว้ + server/ + web.config ผ่าน ssh
       # ลง IIS/iisnode ที่ C:\Program Files\iisnode\www\crm แล้วตรวจ URL ปลายทาง
       #
       # ⚠️ เรียก Git Bash ของเครื่อง runner ตรงๆ ผ่าน cmd — ห้ามใช้ `shell: bash`
@@ -49,4 +55,4 @@ jobs:
           # override ได้ถ้าต้องการ เช่น:
           # DEPLOY_HOST: crm.serveftp.com
           # DEPLOY_USER: Administrator
-        run: '"E:\Program Files\Git\bin\bash.exe" -eo pipefail scripts/deploy/prod_windows_static.sh'
+        run: '"E:\Program Files\Git\bin\bash.exe" -eo pipefail scripts/deploy/prod_windows_static.sh --skip-build'
