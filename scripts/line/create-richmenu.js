@@ -38,11 +38,17 @@ const LIFF_ID = process.env[`VITE_LIFF_ID_${SUFFIX}`] || process.env.VITE_LIFF_I
 const BASE_URL = (process.env.LIFF_BASE_URL || process.env.APP_URL || 'http://crm.serveftp.com').replace(/\/$/, '');
 const LIFF_WEB_PATH = '/liff';
 // Brand is parameterised so the same script builds menus for each company (DENE / KEFERA / ...).
-const BRAND = process.env.RICHMENU_BRAND || 'DENE CRM';
+const BRAND = process.env.RICHMENU_BRAND || (SLUG === 'kefera' ? 'KEFÉRA' : 'DENE CRM');
 const MENU_NAME = process.env.RICHMENU_NAME || `${BRAND} Menu`;
-const BAR_TEXT = process.env.RICHMENU_BAR_TEXT || 'เมนูสมาชิก';
+const BAR_TEXT = process.env.RICHMENU_BAR_TEXT || (SLUG === 'kefera' ? 'Menu' : 'เมนูสมาชิก');
 const PNG_PATH = path.join(__dirname, `richmenu-${SLUG}.png`);
 const SVG_PATH = path.join(__dirname, `richmenu-${SLUG}.svg`);
+
+// Shopping & Social Media destinations for the KEFÉRA menu. Left as placeholders (the BASE_URL site)
+// until real links are provided — set RICHMENU_SHOPPING_URL / RICHMENU_SOCIAL_URL (optionally with a
+// _KEFERA suffix) and re-run, or edit them in the LINE console.
+const SHOPPING_URL = process.env[`RICHMENU_SHOPPING_URL_${SUFFIX}`] || process.env.RICHMENU_SHOPPING_URL || BASE_URL;
+const SOCIAL_URL = process.env[`RICHMENU_SOCIAL_URL_${SUFFIX}`] || process.env.RICHMENU_SOCIAL_URL || BASE_URL;
 
 // ─── Brand themes ─────────────────────────────────────
 // Each company keeps its own palette so the rich menu matches its web admin.
@@ -90,29 +96,25 @@ function buildActionUrl(route) {
 }
 
 // ─── Rich Menu JSON ───────────────────────────────────
-// ขนาด 2500 × 1686 (full height) แบ่ง 3 ช่อง
+// 2500 × 1686. KEFÉRA = 4 columns (Membership / Collect Points / Shopping / Social Media), in English.
+// DENE keeps its original 3-column layout (Register / Slip / Member).
+const KEFERA_AREAS = [
+  { bounds: { x: 0,    y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Membership',    uri: buildActionUrl('/member') } },
+  { bounds: { x: 625,  y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Collect Points', uri: buildActionUrl('/slip') } },
+  { bounds: { x: 1250, y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Shopping',       uri: SHOPPING_URL } },
+  { bounds: { x: 1875, y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Social Media',   uri: SOCIAL_URL } },
+];
+const DENE_AREAS = [
+  { bounds: { x: 0,    y: 0, width: 833, height: 1686 }, action: { type: 'uri', label: 'สมัครสมาชิก', uri: buildActionUrl('/register') } },
+  { bounds: { x: 833,  y: 0, width: 834, height: 1686 }, action: { type: 'uri', label: 'ส่งสลิป',     uri: buildActionUrl('/slip') } },
+  { bounds: { x: 1667, y: 0, width: 833, height: 1686 }, action: { type: 'uri', label: 'บัตรสมาชิก', uri: buildActionUrl('/member') } },
+];
 const RICHMENU = {
   size: { width: 2500, height: 1686 },
   selected: true,
   name: MENU_NAME,
   chatBarText: BAR_TEXT,
-  areas: [
-    {
-      // ช่องซ้าย — สมัครสมาชิก
-      bounds: { x: 0, y: 0, width: 833, height: 1686 },
-      action: { type: 'uri', label: 'สมัครสมาชิก', uri: buildActionUrl('/register') },
-    },
-    {
-      // ช่องกลาง — ส่งสลิป
-      bounds: { x: 833, y: 0, width: 834, height: 1686 },
-      action: { type: 'uri', label: 'ส่งสลิป', uri: buildActionUrl('/slip') },
-    },
-    {
-      // ช่องขวา — บัตรสมาชิก
-      bounds: { x: 1667, y: 0, width: 833, height: 1686 },
-      action: { type: 'uri', label: 'บัตรสมาชิก', uri: buildActionUrl('/member') },
-    },
-  ],
+  areas: SLUG === 'kefera' ? KEFERA_AREAS : DENE_AREAS,
 };
 
 // ─── Helpers ──────────────────────────────────────────
@@ -261,6 +263,67 @@ function buildRichMenuSvg() {
 </svg>`;
 }
 
+// KEFÉRA rich menu — elegant light layout (ivory bg, taupe/brown line icons), 4 columns, English.
+function buildKeferaRichMenuSvg() {
+  const BG = '#eeebdf';        // ivory
+  const CHARCOAL = '#1a1a1a';  // titles
+  const TAUPE = '#a39284';     // dividers / secondary
+  const BROWN = '#7a6855';     // icons / subtitles
+  const SERIF = "Cormorant Garamond, Georgia, 'Times New Roman', serif";
+  const SANS = "'Helvetica Neue', Arial, sans-serif";
+
+  const columns = [
+    { cx: 312.5,  label: 'MEMBERSHIP',     sub: 'Card &amp; points' },
+    { cx: 937.5,  label: 'COLLECT POINTS', sub: 'Upload slip' },
+    { cx: 1562.5, label: 'SHOPPING',       sub: 'Shop our store' },
+    { cx: 2187.5, label: 'SOCIAL MEDIA',   sub: 'Follow us' },
+  ];
+
+  // Line icons drawn around their own origin (0,0); placed at each column center, y = 720.
+  const icon = (i) => {
+    if (i === 0) return `
+      <rect x="-115" y="-72" width="230" height="150" rx="22" fill="none" stroke="${BROWN}" stroke-width="11"/>
+      <line x1="-115" y1="-30" x2="115" y2="-30" stroke="${BROWN}" stroke-width="11"/>
+      <line x1="-82" y1="26" x2="22" y2="26" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>
+      <circle cx="74" cy="30" r="24" fill="none" stroke="${TAUPE}" stroke-width="11"/>`;
+    if (i === 1) return `
+      <path d="M0,-98 L26,-30 L98,-30 L40,14 L62,82 L0,40 L-62,82 L-40,14 L-98,-30 L-26,-30 Z"
+        fill="none" stroke="${BROWN}" stroke-width="11" stroke-linejoin="round"/>`;
+    if (i === 2) return `
+      <path d="M-84 -38 H84 L72 92 H-72 Z" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linejoin="round"/>
+      <path d="M-42 -38 V-62 A42 42 0 0 1 42 -62 V-38" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linecap="round"/>`;
+    return `
+      <circle cx="-62" cy="0" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
+      <circle cx="56" cy="-56" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
+      <circle cx="56" cy="56" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
+      <line x1="-39" y1="-13" x2="34" y2="-46" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>
+      <line x1="-39" y1="13" x2="34" y2="46" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>`;
+  };
+
+  const dividers = [625, 1250, 1875]
+    .map(x => `<line x1="${x}" y1="430" x2="${x}" y2="1560" stroke="${TAUPE}" stroke-opacity="0.5" stroke-width="3"/>`)
+    .join('\n  ');
+
+  const cells = columns.map((c, i) => `
+  <g transform="translate(${c.cx} 720)">${icon(i)}</g>
+  <text x="${c.cx}" y="1110" text-anchor="middle" font-family="${SANS}" font-weight="600" font-size="46" letter-spacing="6" fill="${CHARCOAL}">${c.label}</text>
+  <text x="${c.cx}" y="1180" text-anchor="middle" font-family="${SANS}" font-size="30" fill="${BROWN}">${c.sub}</text>`).join('\n');
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="1686" viewBox="0 0 2500 1686">
+  <rect width="2500" height="1686" fill="${BG}"/>
+  <circle cx="220" cy="260" r="200" fill="${TAUPE}" opacity="0.06"/>
+  <circle cx="2300" cy="1440" r="240" fill="${TAUPE}" opacity="0.05"/>
+
+  <text x="1250" y="205" text-anchor="middle" font-family="${SERIF}" font-weight="500" font-size="92" letter-spacing="26" fill="${CHARCOAL}">KEFÉRA</text>
+  <text x="1250" y="270" text-anchor="middle" font-family="${SANS}" font-weight="600" font-size="30" letter-spacing="14" fill="${BROWN}">MEMBER PRIVILEGES</text>
+  <line x1="1010" y1="320" x2="1490" y2="320" stroke="${TAUPE}" stroke-opacity="0.6" stroke-width="3"/>
+
+  ${dividers}
+${cells}
+</svg>`;
+}
+
 async function generateOrLoadImage() {
   // Skip the cache when rendering on purpose so theme changes always take effect.
   if (!RENDER_ONLY && fs.existsSync(PNG_PATH)) {
@@ -269,7 +332,7 @@ async function generateOrLoadImage() {
   }
 
   console.log('🎨  กำลัง generate รูป Rich Menu...');
-  const svg = buildRichMenuSvg().trim();
+  const svg = (SLUG === 'kefera' ? buildKeferaRichMenuSvg() : buildRichMenuSvg()).trim();
   fs.writeFileSync(SVG_PATH, svg);
   console.log(`💾  บันทึก SVG ไว้ที่ ${path.basename(SVG_PATH)}`);
 
