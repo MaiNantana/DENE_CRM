@@ -30,6 +30,7 @@ export default function LiffRegister() {
     if (!effectiveLineId) { setError(lineError || 'Please open this page from LINE to detect your LINE ID automatically'); return; }
     if (!form.name.trim())   { setError('Please enter your full name'); return; }
     setLoading(true); setError('');
+    let memberRedirect = '';
     try {
       const user = await publicApi.createUser({
         lineId:   effectiveLineId,
@@ -41,12 +42,14 @@ export default function LiffRegister() {
       setCreatedUser(user);
       setStep('success');
     } catch (err: any) {
-      if (effectiveLineId && (err.message?.includes('already') || err.message?.includes('Duplicate'))) {
-        window.location.href = buildCompanyPath(`/liff/member?lineId=${encodeURIComponent(effectiveLineId)}`, company);
-        return;
+      const isDuplicate = err.message?.includes('already') || err.message?.includes('Duplicate');
+      if (effectiveLineId && isDuplicate) {
+        memberRedirect = buildCompanyPath(`/liff/member?lineId=${encodeURIComponent(effectiveLineId)}`, company);
+      } else {
+        setError(err.message || 'Something went wrong. Please try again.');
       }
-      setError(err.message || 'Something went wrong. Please try again.');
     } finally { setLoading(false); }
+    if (memberRedirect) window.location.href = memberRedirect;
   };
 
   if (step === 'success') {

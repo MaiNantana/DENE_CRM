@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileUp, CreditCard, Loader2, ShoppingBag, Share2 } from 'lucide-react';
 import LiffLayout from './LiffLayout';
-import { initializeLiff } from '../../lib/lineLiff';
+import { initializeLiff, resolveLineUserId } from '../../lib/lineLiff';
 import { publicApi } from '../../api';
 import { useLineIdentity } from '../../hooks/useLineIdentity';
 import { buildCompanyPath, getCompanyByCode, getCurrentCompany, getCompanyThemeStyle } from '../../lib/company';
@@ -54,14 +54,23 @@ export default function LiffEntry() {
     let alive = true;
 
     (async () => {
+      let resolvedLineId = '';
       try {
         await initializeLiff();
+        const { lineId: lid } = await resolveLineUserId();
+        resolvedLineId = lid;
       } catch {
         // LIFF will still work in fallback mode; the leaf pages show their own errors.
       }
 
       if (!alive || !target) return;
-      window.location.replace(target);
+
+      // Append lineId so the leaf page can use it as a fallback without re-initialising LIFF.
+      const dest = resolvedLineId && !target.includes('lineId=')
+        ? `${target}${target.includes('?') ? '&' : '?'}lineId=${encodeURIComponent(resolvedLineId)}`
+        : target;
+
+      window.location.replace(dest);
     })();
 
     return () => {
