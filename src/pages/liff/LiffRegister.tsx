@@ -27,8 +27,8 @@ export default function LiffRegister() {
       const resolved = await resolveLineUserId();
       effectiveLineId = resolved.lineId.trim();
     }
-    if (!effectiveLineId) { setError(lineError || 'กรุณาเปิดหน้านี้ผ่าน LINE เพื่อดึง LINE ID อัตโนมัติ'); return; }
-    if (!form.name.trim())   { setError('กรุณากรอกชื่อ-นามสกุล'); return; }
+    if (!effectiveLineId) { setError(lineError || 'Please open this page from LINE to detect your LINE ID automatically'); return; }
+    if (!form.name.trim())   { setError('Please enter your full name'); return; }
     setLoading(true); setError('');
     try {
       const user = await publicApi.createUser({
@@ -41,34 +41,34 @@ export default function LiffRegister() {
       setCreatedUser(user);
       setStep('success');
     } catch (err: any) {
-      setError(err.message?.includes('Duplicate') ? 'Line ID นี้สมัครสมาชิกแล้ว' : (err.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่'));
+      setError(err.message?.includes('Duplicate') ? 'This LINE ID is already registered' : (err.message || 'Something went wrong. Please try again.'));
     } finally { setLoading(false); }
   };
 
   if (step === 'success') {
     return (
-      <LiffLayout title="สมัครสมาชิกสำเร็จ" subtitle={`${company.label} Member`}>
+      <LiffLayout title="Registration Complete" subtitle={`${company.label} Member`}>
         <div className="flex flex-col items-center py-10 gap-4 text-center">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
             <CheckCircle size={40} className="text-green-500" />
           </div>
-          <h2 className="text-xl font-bold text-japandi-900">ยินดีต้อนรับ!</h2>
-          <p className="text-japandi-600">คุณ <span className="font-bold">{createdUser?.name}</span> สมัครสมาชิกเรียบร้อยแล้ว</p>
+          <h2 className="font-serif text-2xl font-semibold text-japandi-900">Welcome!</h2>
+          <p className="text-japandi-600"><span className="font-bold">{createdUser?.name}</span>, you're now a {company.label} member.</p>
 
           <div className="w-full bg-white rounded-2xl p-5 shadow-sm border border-japandi-100 text-left space-y-2 mt-2">
             <div className="flex justify-between text-sm">
-              <span className="text-japandi-500">ระดับ</span>
+              <span className="text-japandi-500">Tier</span>
               <span className="font-bold text-japandi-800">Standard</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-japandi-500">คะแนนเริ่มต้น</span>
-              <span className="font-bold text-japandi-800">0 แต้ม</span>
+              <span className="text-japandi-500">Starting Points</span>
+              <span className="font-bold text-japandi-800">0 pts</span>
             </div>
           </div>
 
           <button onClick={() => { window.location.href = buildCompanyPath('/liff/member'); }}
             className="w-full py-3.5 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900 transition-colors shadow-md mt-2">
-            ดูบัตรสมาชิก →
+            View Member Card →
           </button>
         </div>
       </LiffLayout>
@@ -76,17 +76,17 @@ export default function LiffRegister() {
   }
 
   return (
-    <LiffLayout title="สมัครสมาชิก" subtitle={`${company.label} CRM — Register`}>
+    <LiffLayout title="Register" subtitle={`${company.label} CRM — Register`}>
       <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4 py-2">
         {lineLoading && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-sm text-emerald-800">
-            กำลังอ่าน LINE ID อัตโนมัติ...
+            Detecting your LINE ID...
           </div>
         )}
 
         {!lineLoading && lineId && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            ใช้ LINE ID อัตโนมัติแล้ว: <span className="font-mono font-bold">{lineId}</span>
+            LINE ID detected: <span className="font-mono font-bold">{lineId}</span>
           </div>
         )}
 
@@ -100,18 +100,18 @@ export default function LiffRegister() {
         <div className="bg-japandi-800/10 border border-japandi-800/20 rounded-2xl p-4 flex gap-3">
           <UserPlus size={20} className="text-japandi-800 shrink-0 mt-0.5" />
           <p className="text-sm text-japandi-700 leading-relaxed">
-            กรอกข้อมูลเพื่อสมัครสมาชิก {company.label} ระบบจะดึง LINE ID จาก LIFF อัตโนมัติเมื่อเปิดผ่าน LINE
+            Fill in your details to join {company.label}. Your LINE ID is detected automatically when opened from LINE.
           </p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-japandi-100 space-y-4">
-          <Field label="ชื่อ-นามสกุล" required>
+          <Field label="Full Name" required>
             <input
               name="member_name"
               value={form.name}
               onChange={e => set('name', e.target.value)}
               required
-              placeholder="ชื่อ-นามสกุลของคุณ"
+              placeholder="Your full name"
               autoComplete="new-password"
               autoCapitalize="words"
               autoCorrect="off"
@@ -119,7 +119,7 @@ export default function LiffRegister() {
               className="w-full border border-japandi-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-japandi-400 bg-japandi-50" />
           </Field>
 
-          <Field label="เบอร์โทรศัพท์">
+          <Field label="Phone Number">
             <input
               name="member_phone"
               value={form.phone}
@@ -132,7 +132,7 @@ export default function LiffRegister() {
               className="w-full border border-japandi-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-japandi-400 bg-japandi-50" />
           </Field>
 
-          <Field label="วันเกิด">
+          <Field label="Birthday">
             <input
               name="member_birthday"
               value={form.birthday}
@@ -142,7 +142,7 @@ export default function LiffRegister() {
               className="w-full border border-japandi-200 rounded-xl px-4 py-3 text-sm text-japandi-900 focus:outline-none focus:ring-2 focus:ring-japandi-400 bg-japandi-50" />
           </Field>
 
-          <Field label="อีเมล (ไม่บังคับ)">
+          <Field label="Email (optional)">
             <input
               name="member_email"
               value={form.email}
@@ -164,11 +164,11 @@ export default function LiffRegister() {
 
         <button type="submit" disabled={loading}
           className="w-full py-4 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900 transition-colors shadow-md disabled:opacity-60 flex items-center justify-center gap-2">
-          {loading ? <><Loader2 size={16} className="animate-spin" />กำลังสมัคร...</> : 'ยืนยันการสมัครสมาชิก'}
+          {loading ? <><Loader2 size={16} className="animate-spin" />Registering...</> : 'Complete Registration'}
         </button>
 
         <p className="text-center text-[11px] text-japandi-400 leading-relaxed">
-          การกดยืนยัน หมายถึงคุณยอมรับข้อตกลง<br />และเงื่อนไขการให้บริการของ {company.label}
+          By continuing you agree to {company.label}'s<br />Terms of Service.
         </p>
       </form>
     </LiffLayout>

@@ -25,8 +25,8 @@ type Step = 'form' | 'preview' | 'success';
 const MAX_IMAGE_DIMENSION = 1600;
 
 function formatAmount(amount: number | null | undefined) {
-  if (amount == null || Number.isNaN(Number(amount))) return 'ยังไม่พบยอด';
-  return `฿${Number(amount).toLocaleString('th-TH', {
+  if (amount == null || Number.isNaN(Number(amount))) return 'No amount yet';
+  return `฿${Number(amount).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -44,25 +44,25 @@ function getStatusMeta(status?: SlipAnalysisResult['verificationStatus']) {
   switch (status) {
     case 'verified':
       return {
-        label: 'ตรวจพบสลิปจริง',
+        label: 'Verified slip',
         tone: 'bg-green-50 text-green-700 border-green-200',
         icon: ShieldCheck,
       };
     case 'duplicate':
       return {
-        label: 'สลิปซ้ำ',
+        label: 'Duplicate slip',
         tone: 'bg-red-50 text-red-700 border-red-200',
         icon: AlertTriangle,
       };
     case 'suspicious':
       return {
-        label: 'น่าสงสัย / อาจปลอม',
+        label: 'Suspicious / possibly fake',
         tone: 'bg-red-50 text-red-700 border-red-200',
         icon: AlertTriangle,
       };
     default:
       return {
-        label: 'อ่านได้ไม่ชัดเจน',
+        label: 'Could not read clearly',
         tone: 'bg-amber-50 text-amber-700 border-amber-200',
         icon: AlertCircle,
       };
@@ -73,7 +73,7 @@ function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = ev => resolve(String(ev.target?.result || ''));
-    reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์สลิปได้'));
+    reader.onerror = () => reject(new Error('Could not read the slip file'));
     reader.readAsDataURL(file);
   });
 }
@@ -82,7 +82,7 @@ function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new window.Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('ไม่สามารถโหลดรูปสลิปได้'));
+    img.onerror = () => reject(new Error('Could not load the slip image'));
     img.src = src;
   });
 }
@@ -147,7 +147,7 @@ export default function LiffSlip() {
   useEffect(() => {
     if (identityLoading) return;
     if (!lineId) {
-      setInitErr(identityError || 'ไม่พบ Line ID');
+      setInitErr(identityError || 'LINE ID not found');
       setInitLoading(false);
       return;
     }
@@ -162,14 +162,14 @@ export default function LiffSlip() {
           setUser(found);
           setIsGuest(false);
         } else {
-          // ไม่ใช่สมาชิก — ส่งสลิปได้ในฐานะลูกค้าทั่วไป (แต่ไม่ได้รับแต้ม)
+          // Not a member — can still submit a slip as a guest (but earns no points)
           setUser(null);
           setIsGuest(true);
           getLineDisplayName().then(name => { if (name) setGuestName(name); }).catch(() => {});
         }
         setTiers(tData);
       } catch {
-        setInitErr('เกิดข้อผิดพลาด กรุณาลองใหม่');
+        setInitErr('Something went wrong. Please try again.');
       } finally {
         setInitLoading(false);
       }
@@ -201,7 +201,7 @@ export default function LiffSlip() {
         }
       } catch (err: any) {
         if (!active) return;
-        setAnalysisError(err.message || 'ไม่สามารถอ่านสลิปได้');
+        setAnalysisError(err.message || 'Could not read the slip');
       } finally {
         if (active) setAnalysisLoading(false);
       }
@@ -227,7 +227,7 @@ export default function LiffSlip() {
         setSlipAmountInput('');
         setStep('preview');
       } catch (err: any) {
-        setError(err.message || 'ไม่สามารถอ่านไฟล์สลิปได้');
+        setError(err.message || 'Could not read the slip file');
       } finally {
         e.target.value = '';
       }
@@ -248,7 +248,7 @@ export default function LiffSlip() {
 
   const handleSubmit = async () => {
     if (!user && !isGuest) return;
-    const noteValue = note.trim() || 'ส่งสลิปผ่าน LINE';
+    const noteValue = note.trim() || 'Slip submitted via LINE';
     const tierConfig = user ? tiers.find(t => t.name === user.tier) : undefined;
     const bpp = parseFloat(tierConfig?.baht_per_point) || 10;
     const multiplier = parseFloat(tierConfig?.multiplier) || 1;
@@ -259,14 +259,14 @@ export default function LiffSlip() {
 
     if (manualReview) {
       if (!manualAmount) {
-        setError('กรุณาระบุยอดเงินบนสลิป');
+        setError('Please enter the amount on the slip');
         return;
       }
     } else if (!analysis || !analysis.canProceed || analysis.verificationStatus !== 'verified' || !analysis.verificationToken || !analysis.amount) {
       setError(
         analysis?.verificationStatus === 'duplicate'
-          ? 'พบสลิปซ้ำในระบบ กรุณาใช้สลิปใหม่'
-          : 'สลิปยังไม่ผ่านการตรวจสอบ กรุณาถ่ายใหม่ให้ชัดเจน'
+          ? 'This slip already exists. Please use a new slip.'
+          : 'The slip is not verified yet. Please retake a clearer photo.'
       );
       return;
     }
@@ -302,7 +302,7 @@ export default function LiffSlip() {
       setResult({ order, pointsEarned, amount, analysis, manualReview, isGuest });
       setStep('success');
     } catch (err: any) {
-      setError(err.message || 'เกิดข้อผิดพลาด');
+      setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -326,10 +326,10 @@ export default function LiffSlip() {
 
   if (identityLoading || initLoading) {
     return (
-      <LiffLayout title="ส่งสลิป" subtitle={`${company.label} — Slip Upload`}>
+      <LiffLayout title="Submit Slip" subtitle={`${company.label} — Slip Upload`}>
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-japandi-400">
           <Loader2 size={32} className="animate-spin" />
-          <p className="text-sm">กำลังอ่านข้อมูลสมาชิกจาก LINE...</p>
+          <p className="text-sm">Loading your membership from LINE...</p>
         </div>
       </LiffLayout>
     );
@@ -337,7 +337,7 @@ export default function LiffSlip() {
 
   if (initErr) {
     return (
-      <LiffLayout title="ส่งสลิป" subtitle={`${company.label} — Slip Upload`}>
+      <LiffLayout title="Submit Slip" subtitle={`${company.label} — Slip Upload`}>
         <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
           <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center">
             <AlertCircle size={28} className="text-amber-500" />
@@ -347,7 +347,7 @@ export default function LiffSlip() {
             onClick={() => { window.location.href = buildCompanyPath(`/liff/register${lineId ? `?lineId=${encodeURIComponent(lineId)}` : ''}`, company); }}
             className="py-3 px-6 bg-japandi-800 text-white rounded-2xl font-bold text-sm"
           >
-            สมัครสมาชิก
+            Register
           </button>
         </div>
       </LiffLayout>
@@ -357,37 +357,37 @@ export default function LiffSlip() {
   if (step === 'success') {
     const manualReview = Boolean(result?.manualReview);
     return (
-      <LiffLayout title="ส่งสลิปสำเร็จ" subtitle={`${company.label} — Slip Sent`}>
+      <LiffLayout title="Slip Submitted" subtitle={`${company.label} — Slip Sent`}>
         <div className="flex flex-col items-center py-8 gap-4 text-center">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
             <CheckCircle size={40} className="text-green-500" />
           </div>
-          <h2 className="text-xl font-bold text-japandi-900">ส่งสลิปเรียบร้อย!</h2>
+          <h2 className="font-serif text-2xl font-semibold text-japandi-900">Slip Submitted!</h2>
           <p className="text-japandi-600 text-sm">
             {manualReview
-              ? 'ร้านจะตรวจสอบยอดจากสลิปที่ส่งมา และยืนยันภายหลัง'
-              : 'ระบบอ่านยอดอัตโนมัติแล้ว และส่งรายการเข้าแถวรออนุมัติ'}
+              ? 'The store will verify the amount from your slip and confirm later.'
+              : 'The amount was read automatically and queued for approval.'}
           </p>
 
           <div className="w-full bg-white rounded-2xl p-5 shadow-sm border border-japandi-100 space-y-3 mt-2">
             <div className="flex justify-between text-sm">
-              <span className="text-japandi-500">เลขที่ออเดอร์</span>
+              <span className="text-japandi-500">Order No.</span>
               <span className="font-mono font-bold text-japandi-800 text-xs">{result?.order?.order_ref}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-japandi-500">ยอดชำระ</span>
+              <span className="text-japandi-500">Amount</span>
               <span className="font-bold text-japandi-900">{formatAmount(result?.amount)}</span>
             </div>
             {!result?.isGuest && (
               <div className="flex justify-between text-sm">
-                <span className="text-japandi-500">แต้มโดยประมาณ</span>
-                <span className="font-bold" style={{ color: cardColor }}>~{result?.pointsEarned} แต้ม</span>
+                <span className="text-japandi-500">Estimated Points</span>
+                <span className="font-bold" style={{ color: cardColor }}>~{result?.pointsEarned} pts</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-japandi-500">สถานะ</span>
+              <span className="text-japandi-500">Status</span>
               <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">
-                {manualReview ? 'รอร้านตรวจ' : 'รอตรวจสอบ'}
+                {manualReview ? 'Awaiting store review' : 'Pending verification'}
               </span>
             </div>
           </div>
@@ -397,13 +397,13 @@ export default function LiffSlip() {
               onClick={resetSlip}
               className="py-3 bg-white border-2 border-japandi-200 text-japandi-800 rounded-2xl font-bold text-sm hover:bg-japandi-50"
             >
-              ส่งสลิปอีกใบ
+              Submit Another
             </button>
             <button
               onClick={() => { window.location.href = buildCompanyPath(`/liff/member?lineId=${encodeURIComponent(lineId)}`, company); }}
               className="py-3 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900"
             >
-              ดูบัตรสมาชิก
+              Member Card
             </button>
           </div>
         </div>
@@ -413,7 +413,7 @@ export default function LiffSlip() {
 
   const statusMeta = analysis?.manualReview
     ? {
-        label: 'รอตรวจจากร้าน',
+        label: 'Awaiting store review',
         tone: 'bg-amber-50 text-amber-700 border-amber-200',
         icon: AlertCircle,
       }
@@ -422,7 +422,7 @@ export default function LiffSlip() {
 
   return (
     <LiffLayout
-      title="ส่งสลิป"
+      title="Submit Slip"
       subtitle={`${company.label} — Slip Upload`}
       onBack={step === 'preview' ? resetSlip : undefined}
     >
@@ -448,7 +448,7 @@ export default function LiffSlip() {
             <div>
               <p className="font-bold text-japandi-900 text-sm">{user.name}</p>
               <p className="text-[11px] text-japandi-500">
-                {user.tier} · {Number(user.points).toLocaleString()} แต้ม
+                {user.tier} · {Number(user.points).toLocaleString()} pts
               </p>
             </div>
           </div>
@@ -456,7 +456,7 @@ export default function LiffSlip() {
 
         {isGuest && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs leading-relaxed text-amber-800">
-            <span className="font-bold">ลูกค้าทั่วไป</span> (ยังไม่ได้เป็นสมาชิก) — ส่งสลิปได้ตามปกติ แต่จะ<span className="font-bold">ไม่ได้รับแต้ม</span> หากต้องการสะสมแต้ม กรุณาสมัครสมาชิกก่อน
+            <span className="font-bold">Guest</span> (not a member yet) — you can still submit a slip, but you <span className="font-bold">won't earn points</span>. To collect points, please register first.
           </div>
         )}
 
@@ -465,7 +465,7 @@ export default function LiffSlip() {
             <div className="bg-white rounded-2xl shadow-sm border border-japandi-100 overflow-hidden">
               <div className="p-5 border-b border-japandi-50">
                 <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <Camera size={14} /> อัปโหลดสลิป
+                  <Camera size={14} /> Upload Slip
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -473,7 +473,7 @@ export default function LiffSlip() {
                     className="flex flex-col items-center gap-2 py-6 bg-japandi-50 border-2 border-dashed border-japandi-200 rounded-2xl hover:border-japandi-400 hover:bg-japandi-100 transition-all"
                   >
                     <Camera size={28} className="text-japandi-500" />
-                    <span className="text-xs font-bold text-japandi-600">ถ่ายรูป</span>
+                    <span className="text-xs font-bold text-japandi-600">Take Photo</span>
                   </button>
                   <button
                     onClick={() => {
@@ -485,13 +485,13 @@ export default function LiffSlip() {
                     className="flex flex-col items-center gap-2 py-6 bg-japandi-50 border-2 border-dashed border-japandi-200 rounded-2xl hover:border-japandi-400 hover:bg-japandi-100 transition-all"
                   >
                     <ImageIcon size={28} className="text-japandi-500" />
-                    <span className="text-xs font-bold text-japandi-600">เลือกจากอัลบั้ม</span>
+                    <span className="text-xs font-bold text-japandi-600">Choose from Album</span>
                   </button>
                 </div>
               </div>
               <div className="p-5">
                 <div className="rounded-2xl border border-japandi-100 bg-japandi-50 px-4 py-3 text-sm text-japandi-600">
-                  หลังเลือกสลิป ระบบจะอ่านยอดอัตโนมัติและตรวจสลิปซ้ำ/ปลอมให้ก่อน ถ้ายังไม่มี AI จะให้กรอกยอดเพื่อส่งเข้าตรวจมือ
+                  Once you pick a slip, the amount is read automatically and checked for duplicates/fakes. If AI isn't available, you'll enter the amount for manual review.
                 </div>
               </div>
             </div>
@@ -506,7 +506,7 @@ export default function LiffSlip() {
           <div className="space-y-4">
             <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-japandi-100">
               <div className="flex items-center justify-between px-4 py-3 border-b border-japandi-50">
-                <span className="text-xs font-bold text-japandi-600 uppercase tracking-widest">ตัวอย่างสลิป</span>
+                <span className="text-xs font-bold text-japandi-600 uppercase tracking-widest">Slip Preview</span>
                 <button
                   onClick={resetSlip}
                   className="w-7 h-7 flex items-center justify-center rounded-full bg-japandi-100 hover:bg-japandi-200 text-japandi-600"
@@ -519,7 +519,7 @@ export default function LiffSlip() {
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-japandi-100 space-y-4">
               <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest flex items-center gap-2">
-                <Receipt size={14} /> {manualReviewMode ? 'ตรวจสลิปโดยร้าน' : 'ผลตรวจสลิปอัตโนมัติ'}
+                <Receipt size={14} /> {manualReviewMode ? 'Store Review' : 'Automatic Slip Check'}
               </h3>
 
               {analysisLoading && (
@@ -527,10 +527,10 @@ export default function LiffSlip() {
                   <Loader2 size={18} className="animate-spin" />
                   <div>
                     <p className="text-sm font-semibold">
-                      {manualReviewMode ? 'กำลังเตรียมสลิปให้ร้านตรวจ...' : 'กำลังอ่านยอดและตรวจสอบสลิป...'}
+                      {manualReviewMode ? 'Preparing slip for store review...' : 'Reading amount and verifying slip...'}
                     </p>
                     <p className="text-[11px] text-japandi-500">
-                      {manualReviewMode ? 'กรุณาระบุยอดบนสลิปก่อนส่ง' : 'ระบบจะไม่ให้แก้ไขยอดเอง'}
+                      {manualReviewMode ? 'Please enter the slip amount before sending' : "The amount can't be edited manually"}
                     </p>
                   </div>
                 </div>
@@ -550,24 +550,24 @@ export default function LiffSlip() {
                     <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-800 space-y-3">
                       {analysis.referenceNumber ? (
                         <>
-                          <p className="font-semibold">✅ ตรวจสลิปจริงผ่าน QR แล้ว</p>
+                          <p className="font-semibold">✅ Slip verified via QR</p>
                           <div className="grid grid-cols-1 gap-1 text-[12px] text-amber-900/90">
-                            {analysis.bank && <div>ธนาคาร: <span className="font-semibold">{analysis.bank}</span></div>}
+                            {analysis.bank && <div>Bank: <span className="font-semibold">{analysis.bank}</span></div>}
                             {(analysis.transactionDate || analysis.transactionTime) && (
-                              <div>วัน/เวลา: <span className="font-semibold">{analysis.transactionDate || '-'}{analysis.transactionTime ? ` · ${analysis.transactionTime}` : ''}</span></div>
+                              <div>Date/Time: <span className="font-semibold">{analysis.transactionDate || '-'}{analysis.transactionTime ? ` · ${analysis.transactionTime}` : ''}</span></div>
                             )}
-                            <div className="break-all">เลขอ้างอิง: <span className="font-mono">{analysis.referenceNumber}</span></div>
+                            <div className="break-all">Reference: <span className="font-mono">{analysis.referenceNumber}</span></div>
                           </div>
-                          <p className="text-[12px]">ระบบอ่านยอดด้วย OCR มาให้ — <span className="font-bold">กรุณาตรวจสอบ/แก้ไขให้ตรงกับสลิป</span>ก่อนกดส่ง</p>
+                          <p className="text-[12px]">The amount was read via OCR — <span className="font-bold">please check/correct it to match the slip</span> before sending.</p>
                         </>
                       ) : (
                         <>
-                          <p className="font-semibold">โหมดตรวจมือ</p>
-                          <p>ระบบจะส่งรูปสลิปให้ร้านตรวจยอดเอง กรุณากรอกยอดที่ระบุบนสลิปให้ถูกต้องก่อนกดส่ง</p>
+                          <p className="font-semibold">Manual review mode</p>
+                          <p>The slip image will be sent to the store to verify the amount. Please enter the exact amount on the slip before sending.</p>
                         </>
                       )}
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-widest">ยอดบนสลิป (บาท)</label>
+                        <label className="text-[11px] font-bold uppercase tracking-widest">Amount on slip (THB)</label>
                         <input
                           type="number"
                           inputMode="decimal"
@@ -584,11 +584,11 @@ export default function LiffSlip() {
                     <>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-japandi-50 px-4 py-3">
-                          <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">ยอดที่อ่านได้</p>
+                          <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">Amount Read</p>
                           <p className="mt-1 text-lg font-black text-japandi-900">{formatAmount(analysis.amount)}</p>
                         </div>
                         <div className="rounded-2xl bg-japandi-50 px-4 py-3">
-                          <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">ความมั่นใจ</p>
+                          <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">Confidence</p>
                           <p className="mt-1 text-lg font-black text-japandi-900">
                             {Math.round((analysis.confidence || 0) * 100)}%
                           </p>
@@ -599,22 +599,22 @@ export default function LiffSlip() {
                         <div className="rounded-2xl border border-japandi-100 px-4 py-3 flex items-center gap-3">
                           <Banknote size={16} className="text-japandi-500" />
                           <div>
-                            <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">ธนาคาร</p>
-                            <p className="font-semibold text-japandi-900">{analysis.bank || 'ไม่พบ'}</p>
+                            <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">Bank</p>
+                            <p className="font-semibold text-japandi-900">{analysis.bank || 'Not found'}</p>
                           </div>
                         </div>
                         <div className="rounded-2xl border border-japandi-100 px-4 py-3 flex items-center gap-3">
                           <div>
-                            <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">วัน / เวลา</p>
+                            <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">Date / Time</p>
                             <p className="font-semibold text-japandi-900">
-                              {analysis.transactionDate || 'ไม่พบ'}
+                              {analysis.transactionDate || 'Not found'}
                               {analysis.transactionTime ? ` · ${analysis.transactionTime}` : ''}
                             </p>
                           </div>
                         </div>
                         <div className="rounded-2xl border border-japandi-100 px-4 py-3 sm:col-span-2">
                           <p className="text-[11px] font-bold text-japandi-500 uppercase tracking-widest">Reference</p>
-                          <p className="font-semibold text-japandi-900 mt-1">{analysis.referenceNumber || 'ไม่พบ'}</p>
+                          <p className="font-semibold text-japandi-900 mt-1">{analysis.referenceNumber || 'Not found'}</p>
                         </div>
                       </div>
                     </>
@@ -622,7 +622,7 @@ export default function LiffSlip() {
 
                   {analysis.warnings?.length > 0 && (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                      <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest mb-2">ข้อสังเกต</p>
+                      <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest mb-2">Notes</p>
                       <ul className="space-y-1 text-sm text-amber-700 list-disc list-inside">
                         {analysis.warnings.map(warning => <li key={warning}>{warning}</li>)}
                       </ul>
@@ -631,13 +631,13 @@ export default function LiffSlip() {
 
                   {!analysis.canProceed && !analysis.manualReview && analysis.verificationStatus === 'duplicate' && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      สลิปนี้ถูกใช้ไปแล้วในระบบ กรุณาใช้สลิปใหม่ หรือส่งให้ร้านตรวจสอบกรณีพิเศษ
+                      This slip has already been used. Please use a new slip, or ask the store to review a special case.
                     </div>
                   )}
 
                   {!analysis.canProceed && !analysis.manualReview && analysis.verificationStatus !== 'duplicate' && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      สลิปยังไม่ผ่านการตรวจสอบ กรุณาถ่ายใหม่ให้เห็นยอดและรายละเอียดชัดเจน
+                      The slip isn't verified yet. Please retake the photo so the amount and details are clearly visible.
                     </div>
                   )}
                 </div>
@@ -650,19 +650,19 @@ export default function LiffSlip() {
               )}
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-japandi-600 uppercase tracking-widest">หมายเหตุ</label>
+                <label className="text-[11px] font-bold text-japandi-600 uppercase tracking-widest">Note</label>
                 <input
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  placeholder="เช่น ซื้อกาแฟ 2 แก้ว"
+                  placeholder="e.g. 2 cups of coffee"
                   className="w-full border border-japandi-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-japandi-400 bg-japandi-50"
                 />
               </div>
 
               {!isGuest && displayedAmount && displayedAmount > 0 && (
                 <div className="bg-japandi-50 rounded-xl px-4 py-3 flex justify-between items-center">
-                  <span className="text-xs text-japandi-600 font-semibold">แต้มที่จะได้รับ</span>
-                  <span className="font-black text-base" style={{ color: cardColor }}>~{estPoints} แต้ม</span>
+                  <span className="text-xs text-japandi-600 font-semibold">Points to earn</span>
+                  <span className="font-black text-base" style={{ color: cardColor }}>~{estPoints} pts</span>
                 </div>
               )}
             </div>
@@ -675,10 +675,10 @@ export default function LiffSlip() {
               className="w-full py-4 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900 transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading
-                ? <><Loader2 size={16} className="animate-spin" />กำลังส่ง...</>
+                ? <><Loader2 size={16} className="animate-spin" />Sending...</>
                 : manualReviewMode
-                  ? 'ส่งให้ร้านตรวจ'
-                  : 'ยืนยันส่งสลิป'}
+                  ? 'Send for Store Review'
+                  : 'Submit Slip'}
             </button>
           </div>
         )}

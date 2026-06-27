@@ -10,10 +10,10 @@ export default function CompanyNotFound({ code }: { code: string }) {
           <AlertTriangle size={30} />
         </div>
         <p className="mt-6 text-xs font-bold uppercase tracking-[0.35em] text-japandi-500">Company not found</p>
-        <h1 className="mt-3 text-3xl md:text-4xl font-black text-japandi-900">ไม่พบร้านนี้</h1>
+        <h1 className="mt-3 font-serif text-3xl md:text-4xl font-semibold text-japandi-900">Store not found</h1>
         <p className="mt-4 text-base leading-relaxed text-japandi-600">
-          ไม่พบร้านสำหรับลิงก์ <span className="font-mono font-bold text-japandi-900">/{code}</span>
-          <br />ตรวจสอบการสะกดอีกครั้ง (เช่น <span className="font-mono">/kefera</span> ไม่ใช่ <span className="font-mono">/kerfera</span>)
+          No store found for the link <span className="font-mono font-bold text-japandi-900">/{code}</span>
+          <br />Please check the spelling (e.g. <span className="font-mono">/kefera</span>, not <span className="font-mono">/kerfera</span>)
         </p>
 
         <div className="mt-8 grid gap-3 sm:grid-cols-2 w-full">
@@ -26,13 +26,13 @@ export default function CompanyNotFound({ code }: { code: string }) {
               style={{ backgroundColor: company.accent }}
             >
               <Building2 size={18} />
-              เข้า {company.label}
+              Enter {company.label}
             </Link>
           ))}
         </div>
 
         <Link to="/" reloadDocument className="mt-6 text-sm font-semibold text-japandi-600 hover:text-japandi-900">
-          ← กลับหน้าเลือกร้าน
+          ← Back to store selection
         </Link>
       </div>
     </div>

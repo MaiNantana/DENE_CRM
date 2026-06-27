@@ -49,7 +49,7 @@ export default function LiffMember() {
   useEffect(() => {
     if (identityLoading) return;
     if (!lineId) {
-      setError(identityError || 'ไม่พบ Line ID');
+      setError(identityError || 'LINE ID not found');
       setLoading(false);
       return;
     }
@@ -64,12 +64,12 @@ export default function LiffMember() {
           publicApi.getPromotions('active'),
         ]);
         const found = users.find((u: any) => u.line_id === lineId);
-        if (!found) { setError('ไม่พบข้อมูลสมาชิก กรุณาสมัครสมาชิกก่อน'); setLoading(false); return; }
+        if (!found) { setError('No membership found. Please register first.'); setLoading(false); return; }
         setUser(found);
         setTiers(tData);
         setPromos(pData);
         await loadMemberHistory(found.id);
-      } catch { setError('เกิดข้อผิดพลาด กรุณาลองใหม่'); }
+      } catch { setError('Something went wrong. Please try again.'); }
       finally { setLoading(false); }
     })();
   }, [lineId, identityLoading, identityError]);
@@ -81,16 +81,16 @@ export default function LiffMember() {
   }, [promoNotice]);
 
   if (identityLoading || loading) return (
-    <LiffLayout title="บัตรสมาชิก" subtitle={`${company.label} Member`}>
+    <LiffLayout title="Member Card" subtitle={`${company.label} Member`}>
       <div className="flex flex-col items-center justify-center py-20 gap-3 text-japandi-400">
         <Loader2 size={32} className="animate-spin" />
-        <p className="text-sm">กำลังอ่านข้อมูลสมาชิกจาก LINE...</p>
+        <p className="text-sm">Loading your membership from LINE...</p>
       </div>
     </LiffLayout>
   );
 
   if (error) return (
-    <LiffLayout title="บัตรสมาชิก" subtitle={`${company.label} Member`}>
+    <LiffLayout title="Member Card" subtitle={`${company.label} Member`}>
       <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
           <AlertCircle size={28} className="text-red-400" />
@@ -98,7 +98,7 @@ export default function LiffMember() {
         <p className="text-japandi-700 font-semibold">{error}</p>
         <button onClick={() => { window.location.href = buildCompanyPath(`/liff/register${lineId ? `?lineId=${encodeURIComponent(lineId)}` : ''}`, company); }}
           className="py-3 px-6 bg-japandi-800 text-white rounded-2xl font-bold text-sm hover:bg-japandi-900">
-          สมัครสมาชิก
+          Register
         </button>
       </div>
     </LiffLayout>
@@ -119,7 +119,7 @@ export default function LiffMember() {
     const currentPoints = Number(user.points) || 0;
 
     if (currentPoints < requiredPoints) {
-      setPromoNotice({ type: 'error', text: `แต้มไม่พอสำหรับ "${promo.title}"` });
+      setPromoNotice({ type: 'error', text: `Not enough points for "${promo.title}"` });
       return;
     }
 
@@ -129,7 +129,7 @@ export default function LiffMember() {
     try {
       const result = await publicApi.redeemPromotion(promo.id, { userId: user.id, lineId });
       if (result?.status === 'pending' || result?.redeemMode === 'manual') {
-        setPromoNotice({ type: 'success', text: `ส่งคำขอ "${promo.title}" เรียบร้อยแล้ว รอร้านยืนยันก่อนใช้สิทธิ์` });
+        setPromoNotice({ type: 'success', text: `Request for "${promo.title}" sent. Waiting for store confirmation.` });
       } else {
         const usedPoints = Number(result?.pointsUsed ?? requiredPoints) || requiredPoints;
         const remainingPoints = Number(result?.remainingPoints);
@@ -142,7 +142,7 @@ export default function LiffMember() {
           return { ...prev, points: nextPoints };
         });
 
-        setPromoNotice({ type: 'success', text: `แลก "${promo.title}" สำเร็จ ใช้ ${usedPoints.toLocaleString()} แต้ม` });
+        setPromoNotice({ type: 'success', text: `Redeemed "${promo.title}" — used ${usedPoints.toLocaleString()} pts` });
       }
       try {
         await loadMemberHistory(user.id);
@@ -151,7 +151,7 @@ export default function LiffMember() {
       }
       setSelectedPromo(null);
     } catch (err: any) {
-      setPromoNotice({ type: 'error', text: err?.message || 'เกิดข้อผิดพลาดในการแลกสิทธิ์' });
+      setPromoNotice({ type: 'error', text: err?.message || 'Something went wrong while redeeming' });
     } finally {
       setRedeemingPromoId(null);
     }
@@ -180,14 +180,14 @@ export default function LiffMember() {
     if (!value) return '—';
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return '—';
-    return parsed.toLocaleDateString('th-TH', { dateStyle: 'medium' });
+    return parsed.toLocaleDateString('en-US', { dateStyle: 'medium' });
   };
   const earnedPointHistory = pointHistory.filter((p: PointHistory) => p.type === 'earn');
   const getPointHistoryStatus = (item: PointHistory) => {
-    if (!item.expiresAt) return item.pointsRemaining > 0 ? 'ไม่หมดอายุ' : 'ใช้แล้ว';
+    if (!item.expiresAt) return item.pointsRemaining > 0 ? 'No expiry' : 'Used';
     const expired = new Date(item.expiresAt).getTime() <= Date.now();
-    if (expired) return 'หมดอายุ';
-    return item.pointsRemaining > 0 ? 'ใช้งานอยู่' : 'ใช้แล้ว';
+    if (expired) return 'Expired';
+    return item.pointsRemaining > 0 ? 'Active' : 'Used';
   };
 
   // next tier
@@ -199,7 +199,7 @@ export default function LiffMember() {
     : 100;
 
   return (
-    <LiffLayout title="บัตรสมาชิก" subtitle={`${company.label} — ${user.tier} Member`} noPad>
+    <LiffLayout title="Member Card" subtitle={`${company.label} — ${user.tier} Member`} noPad>
       <div className="p-4 space-y-4 pb-8">
 
         {identityError && !isAuto && (
@@ -236,7 +236,7 @@ export default function LiffMember() {
               <p className="text-xs opacity-60 mt-0.5">{user.line_id}</p>
               {user.tier_expires_at && (
                 <p className="text-[10px] opacity-60 mt-1">
-                  หมดอายุระดับ: {formatDisplayDate(user.tier_expires_at)}
+                  Tier expires: {formatDisplayDate(user.tier_expires_at)}
                 </p>
               )}
             </div>
@@ -252,7 +252,7 @@ export default function LiffMember() {
               <p className="text-xs font-bold opacity-60">PTS</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] opacity-60 font-bold">ยอดซื้อรวม</p>
+              <p className="text-[10px] opacity-60 font-bold">Total Spent</p>
               <p className="text-sm font-bold">฿{Number(user.total_spent).toLocaleString()}</p>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function LiffMember() {
         {nextTier && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-japandi-100">
             <div className="flex justify-between items-center mb-2">
-              <p className="text-xs font-bold text-japandi-600">ความคืบหน้าสู่ระดับ</p>
+              <p className="text-xs font-bold text-japandi-600">Progress to next tier</p>
               <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: nextTier.color + '30', color: nextTier.color }}>
                 {nextTier.name}
               </span>
@@ -271,23 +271,23 @@ export default function LiffMember() {
               <div className="h-2 rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: cardColor }} />
             </div>
             <p className="text-[11px] text-japandi-500">
-              ต้องการอีก <span className="font-bold text-japandi-800">{(nextTier.min_points - user.points).toLocaleString()} แต้ม</span> เพื่อเลื่อนระดับ
+              <span className="font-bold text-japandi-800">{(nextTier.min_points - user.points).toLocaleString()} pts</span> more to level up
             </p>
           </div>
         )}
 
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-japandi-100">
-          <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest mb-3">สิทธิพิเศษที่คำนวณจากระดับ</h3>
+          <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest mb-3">Tier-based Benefits</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-xl border border-japandi-200 bg-japandi-50/70 p-3">
-              <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">คะแนนสะสม</p>
+              <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">Points Earning</p>
               <p className="mt-1 text-sm font-black text-japandi-900">x{tierMultiplier}</p>
-              <p className="mt-1 text-[11px] text-japandi-500">ทุก ฿{Number(tierBahtPerPoint).toLocaleString()} = 1 แต้ม</p>
+              <p className="mt-1 text-[11px] text-japandi-500">Every ฿{Number(tierBahtPerPoint).toLocaleString()} = 1 pt</p>
             </div>
             <div className="rounded-xl border border-japandi-200 bg-japandi-50/70 p-3">
-              <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">ส่วนลดสมาชิก</p>
+              <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">Member Discount</p>
               <p className="mt-1 text-sm font-black text-japandi-900">{Number(tierDiscountPercent).toFixed(2).replace(/\.00$/, '')}%</p>
-              <p className="mt-1 text-[11px] text-japandi-500">ซื้อ ฿1,000 ลด ฿{(1000 * Number(tierDiscountPercent) / 100).toFixed(2)}</p>
+              <p className="mt-1 text-[11px] text-japandi-500">Spend ฿1,000, save ฿{(1000 * Number(tierDiscountPercent) / 100).toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -295,7 +295,7 @@ export default function LiffMember() {
         {/* Benefits */}
         {bens.length > 0 && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-japandi-100">
-            <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest mb-3">สิทธิพิเศษอื่นๆ ของคุณ</h3>
+            <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest mb-3">Your Other Benefits</h3>
             <ul className="space-y-2">
               {bens.map((b, i) => (
                 <li key={i} className="flex items-center gap-2 text-sm text-japandi-800">
@@ -311,7 +311,7 @@ export default function LiffMember() {
         {promos.length > 0 && (
           <div className="space-y-2">
             <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest px-1 flex items-center gap-2">
-              <Gift size={14} /> แลกแต้มรับสิทธิ์
+              <Gift size={14} /> Redeem Rewards
             </h3>
             {promos.map((p: any) => (
               <button
@@ -319,7 +319,7 @@ export default function LiffMember() {
                 type="button"
                 onClick={() => openRedeemModal(p)}
                 disabled={redeemingPromoId === p.id}
-                aria-label={`แลกสิทธิ์ ${p.title}`}
+                aria-label={`Redeem ${p.title}`}
                 className={`w-full text-left bg-white rounded-2xl p-4 shadow-sm border border-japandi-100 space-y-3 transition-transform touch-manipulation cursor-pointer ${
                   redeemingPromoId === p.id ? 'opacity-80' : 'hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]'
                 }`}
@@ -337,10 +337,10 @@ export default function LiffMember() {
                           ? 'bg-amber-50 text-amber-700 border-amber-200'
                           : 'bg-green-50 text-green-700 border-green-200'
                       }`}>
-                        {(p.redeem_mode || p.redeemMode) === 'manual' ? 'รออนุมัติ' : 'แลกทันที'}
+                        {(p.redeem_mode || p.redeemMode) === 'manual' ? 'Pending approval' : 'Instant redeem'}
                       </span>
                       <span className="text-[10px] text-japandi-400 font-semibold">
-                        แตะเพื่อดูรายละเอียด
+                        Tap for details
                       </span>
                     </div>
                   </div>
@@ -352,11 +352,11 @@ export default function LiffMember() {
                 <div className="flex items-center justify-between gap-3 pt-3 border-t border-japandi-50">
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold text-japandi-500">
-                      ใช้ {Number(p.points_required).toLocaleString()} แต้ม
+                      Uses {Number(p.points_required).toLocaleString()} pts
                     </p>
                     {Number(user.points) < Number(p.points_required) && (
                       <p className="text-[10px] font-bold text-amber-600">
-                        แต้มของคุณยังไม่พอ
+                        Not enough points
                       </p>
                     )}
                   </div>
@@ -368,12 +368,12 @@ export default function LiffMember() {
                     {redeemingPromoId === p.id ? (
                       <>
                         <Loader2 size={14} className="mr-2 animate-spin" />
-                        กำลังแลก
+                        Redeeming
                       </>
                     ) : Number(user.points) >= Number(p.points_required) ? (
-                      'กดเพื่อแลก'
+                      'Redeem'
                     ) : (
-                      'ดูเงื่อนไข'
+                      'View terms'
                     )}
                   </div>
                 </div>
@@ -390,7 +390,7 @@ export default function LiffMember() {
               <div className="px-6 pt-6 pb-5 border-b border-japandi-100">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-japandi-500">ยืนยันการแลกแต้ม</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-japandi-500">Confirm Redemption</p>
                     <h3 className="mt-2 text-lg font-black text-japandi-900">{selectedPromo.title}</h3>
                   </div>
                   <button onClick={closeRedeemModal} disabled={!!redeemingPromoId}
@@ -404,7 +404,7 @@ export default function LiffMember() {
                 <div className="rounded-2xl border border-japandi-200 bg-japandi-50/60 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold text-japandi-500 uppercase tracking-widest">โปรโมชั่น</p>
+                      <p className="text-xs font-bold text-japandi-500 uppercase tracking-widest">Promotion</p>
                       <p className="font-bold text-japandi-900 mt-1">{selectedPromo.title}</p>
                     </div>
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
@@ -412,7 +412,7 @@ export default function LiffMember() {
                         ? 'bg-amber-50 text-amber-700 border-amber-200'
                         : 'bg-green-50 text-green-700 border-green-200'
                     }`}>
-                      {(selectedPromo.redeem_mode || selectedPromo.redeemMode) === 'manual' ? 'รออนุมัติ' : 'แลกทันที'}
+                      {(selectedPromo.redeem_mode || selectedPromo.redeemMode) === 'manual' ? 'Pending approval' : 'Instant redeem'}
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-japandi-600 leading-relaxed">
@@ -422,11 +422,11 @@ export default function LiffMember() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-japandi-200 p-4">
-                    <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">แต้มที่ใช้</p>
+                    <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">Points Used</p>
                     <p className="mt-1 text-xl font-black text-japandi-900">{Number(selectedPromo.points_required).toLocaleString()}</p>
                   </div>
                   <div className="rounded-2xl border border-japandi-200 p-4">
-                    <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">แต้มปัจจุบัน</p>
+                    <p className="text-[10px] font-bold text-japandi-400 uppercase tracking-widest">Current Points</p>
                     <p className="mt-1 text-xl font-black text-japandi-900">{Number(user.points).toLocaleString()}</p>
                   </div>
                 </div>
@@ -438,15 +438,15 @@ export default function LiffMember() {
                 }`}>
                   {Number(user.points) >= Number(selectedPromo.points_required)
                     ? selectedPromo.redeem_mode === 'manual' || selectedPromo.redeemMode === 'manual'
-                      ? 'ร้านจะต้องกดยืนยันคำขอของคุณก่อนจึงจะใช้สิทธิ์ได้'
-                      : 'ระบบจะตัดแต้มทันทีหลังคุณกดยืนยัน'
-                    : 'แต้มของคุณยังไม่พอสำหรับรายการนี้'}
+                      ? 'The store must approve your request before you can use this reward.'
+                      : 'Points will be deducted immediately after you confirm.'
+                    : 'You don\'t have enough points for this item.'}
                 </div>
 
                 <div className="flex gap-3 pt-1">
                   <button onClick={closeRedeemModal} disabled={!!redeemingPromoId}
                     className="flex-1 py-3 border border-japandi-200 rounded-2xl text-sm font-bold text-japandi-700 hover:bg-japandi-50 disabled:opacity-50">
-                    ยกเลิก
+                    Cancel
                   </button>
                   <button
                     onClick={() => void handleRedeem(selectedPromo)}
@@ -456,12 +456,12 @@ export default function LiffMember() {
                     {redeemingPromoId === selectedPromo.id ? (
                       <>
                         <Loader2 size={15} className="animate-spin" />
-                        กำลังดำเนินการ
+                        Processing
                       </>
                     ) : (selectedPromo.redeem_mode || selectedPromo.redeemMode) === 'manual' ? (
-                      'ส่งคำขอแลกแต้ม'
+                      'Send Redemption Request'
                     ) : (
-                      'ยืนยันแลกสิทธิ์'
+                      'Confirm Redemption'
                     )}
                   </button>
                 </div>
@@ -473,11 +473,11 @@ export default function LiffMember() {
         {/* Redemption History */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest px-1 flex items-center gap-2">
-            <Gift size={14} /> ประวัติแลกแต้ม
+            <Gift size={14} /> Redemption History
           </h3>
           {redemptionHistory.length === 0 ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-japandi-100 text-center text-japandi-400 text-sm">
-              ยังไม่มีประวัติแลกแต้ม
+              No redemptions yet
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-japandi-100 overflow-hidden">
@@ -495,7 +495,7 @@ export default function LiffMember() {
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-japandi-900 truncate">{h.promotionTitle}</p>
                         <p className="text-[10px] text-japandi-400">
-                          {new Date(h.occurredAt).toLocaleDateString('th-TH')}
+                          {new Date(h.occurredAt).toLocaleDateString('en-US')}
                           {isRejected && h.reviewNote ? ` · ${h.reviewNote}` : ''}
                         </p>
                       </div>
@@ -505,7 +505,7 @@ export default function LiffMember() {
                         {isCompleted ? '-' : ''}{Number(h.points).toLocaleString()} pts
                       </p>
                       <p className={`text-[10px] font-semibold ${isCompleted ? 'text-green-600' : isRejected ? 'text-red-500' : 'text-amber-600'}`}>
-                        {isCompleted ? 'แลกสำเร็จ' : isRejected ? 'ถูกปฏิเสธ' : 'รออนุมัติ'}
+                        {isCompleted ? 'Redeemed' : isRejected ? 'Rejected' : 'Pending'}
                       </p>
                     </div>
                   </div>
@@ -518,11 +518,11 @@ export default function LiffMember() {
         {/* Point History */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest px-1 flex items-center gap-2">
-            <BadgeCheck size={14} /> ประวัติคะแนน
+            <BadgeCheck size={14} /> Points History
           </h3>
           {earnedPointHistory.length === 0 ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-japandi-100 text-center text-japandi-400 text-sm">
-              ยังไม่มีประวัติคะแนน
+              No points history yet
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-japandi-100 overflow-hidden">
@@ -533,10 +533,10 @@ export default function LiffMember() {
                   <div key={item.id} className={`px-4 py-3 flex items-center justify-between ${i < earnedPointHistory.length - 1 ? 'border-b border-japandi-50' : ''}`}>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-japandi-900 truncate">
-                        {item.note || 'แต้มสะสม'}
+                        {item.note || 'Points earned'}
                       </p>
                       <p className="text-[10px] text-japandi-400 mt-0.5">
-                        ได้ {formatDisplayDate(item.createdAt)} · หมดอายุ {item.expiresAt ? formatDisplayDate(item.expiresAt) : 'ไม่หมดอายุ'}
+                        Earned {formatDisplayDate(item.createdAt)} · Expires {item.expiresAt ? formatDisplayDate(item.expiresAt) : 'Never'}
                       </p>
                     </div>
                     <div className="text-right shrink-0 ml-3">
@@ -557,11 +557,11 @@ export default function LiffMember() {
         {/* Order History */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-japandi-500 uppercase tracking-widest px-1 flex items-center gap-2">
-            <History size={14} /> ประวัติรายการล่าสุด
+            <History size={14} /> Recent Orders
           </h3>
           {orders.length === 0 ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-japandi-100 text-center text-japandi-400 text-sm">
-              ยังไม่มีรายการ
+              No orders yet
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm border border-japandi-100 overflow-hidden">
@@ -573,13 +573,13 @@ export default function LiffMember() {
                     </div>
                     <div>
                       <p className="text-xs font-bold text-japandi-900 uppercase">{o.order_ref}</p>
-                      <p className="text-[10px] text-japandi-400">{new Date(o.ordered_at).toLocaleDateString('th-TH')}</p>
+                      <p className="text-[10px] text-japandi-400">{new Date(o.ordered_at).toLocaleDateString('en-US')}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-bold text-japandi-900">฿{Number(o.amount).toLocaleString()}</p>
                     <p className="text-[10px] font-bold" style={{ color: o.status === 'paid' ? cardColor : '#aaa' }}>
-                      {o.status === 'paid' ? `+${getOrderPoints(o).toLocaleString()} pts` : o.status === 'cancel' ? 'ยกเลิก' : 'รอชำระ'}
+                      {o.status === 'paid' ? `+${getOrderPoints(o).toLocaleString()} pts` : o.status === 'cancel' ? 'Cancelled' : 'Pending'}
                     </p>
                   </div>
                 </div>
@@ -592,11 +592,11 @@ export default function LiffMember() {
         <div className="grid grid-cols-2 gap-3 pt-2">
           <button onClick={() => { window.location.href = buildCompanyPath(`/liff/slip?lineId=${encodeURIComponent(lineId)}`, company); }}
             className="py-3.5 bg-japandi-800 text-white rounded-2xl font-bold text-sm shadow-md hover:bg-japandi-900 transition-colors">
-            📷 ส่งสลิป
+            📷 Submit Slip
           </button>
           <button onClick={() => { window.location.href = buildCompanyPath(`/liff/register?lineId=${encodeURIComponent(lineId)}`, company); }}
             className="py-3.5 bg-white border-2 border-japandi-200 text-japandi-800 rounded-2xl font-bold text-sm hover:bg-japandi-50 transition-colors">
-            แก้ไขข้อมูล
+            Edit Profile
           </button>
         </div>
       </div>
