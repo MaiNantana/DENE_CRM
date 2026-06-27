@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Camera, CreditCard, Loader2, ShoppingBag, Share2 } from 'lucide-react';
+import { FileUp, CreditCard, Loader2, ShoppingBag, Share2 } from 'lucide-react';
 import LiffLayout from './LiffLayout';
 import { initializeLiff } from '../../lib/lineLiff';
 import { publicApi } from '../../api';
@@ -150,8 +150,8 @@ export default function LiffEntry() {
       loading: memberLookupLoading,
     },
     {
-      label: 'Collect Points',
-      icon: Camera,
+      label: 'Upload Slip',
+      icon: FileUp,
       href: buildCompanyPath('/liff/slip', company),
     },
     {

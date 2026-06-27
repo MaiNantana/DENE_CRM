@@ -98,11 +98,12 @@ function buildActionUrl(route) {
 // ─── Rich Menu JSON ───────────────────────────────────
 // 2500 × 1686. KEFÉRA = 4 columns (Membership / Collect Points / Shopping / Social Media), in English.
 // DENE keeps its original 3-column layout (Register / Slip / Member).
+// Only Membership + Upload Slip are tappable for now. Shopping & Social Media tiles are shown in the
+// image but have NO area, so tapping them does nothing until real links are wired up (then add areas
+// here using SHOPPING_URL / SOCIAL_URL).
 const KEFERA_AREAS = [
-  { bounds: { x: 0,    y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Membership',    uri: buildActionUrl('/member') } },
-  { bounds: { x: 625,  y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Collect Points', uri: buildActionUrl('/slip') } },
-  { bounds: { x: 1250, y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Shopping',       uri: SHOPPING_URL } },
-  { bounds: { x: 1875, y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Social Media',   uri: SOCIAL_URL } },
+  { bounds: { x: 0,    y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Membership',  uri: buildActionUrl('/member') } },
+  { bounds: { x: 625,  y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Upload Slip', uri: buildActionUrl('/slip') } },
 ];
 const DENE_AREAS = [
   { bounds: { x: 0,    y: 0, width: 833, height: 1686 }, action: { type: 'uri', label: 'สมัครสมาชิก', uri: buildActionUrl('/register') } },
@@ -273,10 +274,10 @@ function buildKeferaRichMenuSvg() {
   const SANS = "'Helvetica Neue', Arial, sans-serif";
 
   const columns = [
-    { cx: 312.5,  label: 'MEMBERSHIP',     sub: 'Card &amp; points' },
-    { cx: 937.5,  label: 'COLLECT POINTS', sub: 'Upload slip' },
-    { cx: 1562.5, label: 'SHOPPING',       sub: 'Shop our store' },
-    { cx: 2187.5, label: 'SOCIAL MEDIA',   sub: 'Follow us' },
+    { cx: 312.5,  label: 'MEMBERSHIP',   sub: 'Card &amp; points' },
+    { cx: 937.5,  label: 'UPLOAD SLIP',  sub: 'Collect points' },
+    { cx: 1562.5, label: 'SHOPPING',     sub: 'Shop our store' },
+    { cx: 2187.5, label: 'SOCIAL MEDIA', sub: 'Follow us' },
   ];
 
   // Line icons drawn around their own origin (0,0); placed at each column center, y = 720.
@@ -287,8 +288,10 @@ function buildKeferaRichMenuSvg() {
       <line x1="-82" y1="26" x2="22" y2="26" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>
       <circle cx="74" cy="30" r="24" fill="none" stroke="${TAUPE}" stroke-width="11"/>`;
     if (i === 1) return `
-      <path d="M0,-98 L26,-30 L98,-30 L40,14 L62,82 L0,40 L-62,82 L-40,14 L-98,-30 L-26,-30 Z"
-        fill="none" stroke="${BROWN}" stroke-width="11" stroke-linejoin="round"/>`;
+      <rect x="-58" y="-36" width="116" height="150" rx="14" fill="none" stroke="${BROWN}" stroke-width="11"/>
+      <line x1="-28" y1="20" x2="28" y2="20" stroke="${TAUPE}" stroke-width="10" stroke-linecap="round"/>
+      <line x1="-28" y1="58" x2="6" y2="58" stroke="${TAUPE}" stroke-width="10" stroke-linecap="round"/>
+      <path d="M0 -54 V-114 M-30 -86 L0 -116 L30 -86" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>`;
     if (i === 2) return `
       <path d="M-84 -38 H84 L72 92 H-72 Z" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linejoin="round"/>
       <path d="M-42 -38 V-62 A42 42 0 0 1 42 -62 V-38" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linecap="round"/>`;

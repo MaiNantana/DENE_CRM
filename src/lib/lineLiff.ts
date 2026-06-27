@@ -137,12 +137,13 @@ export async function resolveLineUserId(fallbackLineId = '') {
     return { lineId: contextUserId, isAuto: true };
   }
 
-  if (!liff.isLoggedIn()) {
-    if (!isLiffBrowser()) {
-      liff.login({ redirectUri: getLoginRedirectUri() });
-    }
+  // External browser & not logged in → kick off LINE login and come back.
+  if (!liff.isLoggedIn() && !isLiffBrowser()) {
+    liff.login({ redirectUri: getLoginRedirectUri() });
     return { lineId: fallback, isAuto: false };
   }
+  // Inside the LINE app the client session lets getProfile() work even when isLoggedIn() is false,
+  // so fall through and try it instead of returning an empty id (which showed "LINE ID not found").
 
   try {
     const profile = await liff.getProfile();

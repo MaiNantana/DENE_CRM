@@ -20,10 +20,12 @@
   <text x="312.5" y="1180" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" fill="#7a6855">Card &amp; points</text>
 
   <g transform="translate(937.5 720)">
-      <path d="M0,-98 L26,-30 L98,-30 L40,14 L62,82 L0,40 L-62,82 L-40,14 L-98,-30 L-26,-30 Z"
-        fill="none" stroke="#7a6855" stroke-width="11" stroke-linejoin="round"/></g>
-  <text x="937.5" y="1110" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="600" font-size="46" letter-spacing="6" fill="#1a1a1a">COLLECT POINTS</text>
-  <text x="937.5" y="1180" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" fill="#7a6855">Upload slip</text>
+      <rect x="-58" y="-36" width="116" height="150" rx="14" fill="none" stroke="#7a6855" stroke-width="11"/>
+      <line x1="-28" y1="20" x2="28" y2="20" stroke="#a39284" stroke-width="10" stroke-linecap="round"/>
+      <line x1="-28" y1="58" x2="6" y2="58" stroke="#a39284" stroke-width="10" stroke-linecap="round"/>
+      <path d="M0 -54 V-114 M-30 -86 L0 -116 L30 -86" fill="none" stroke="#7a6855" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="937.5" y="1110" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="600" font-size="46" letter-spacing="6" fill="#1a1a1a">UPLOAD SLIP</text>
+  <text x="937.5" y="1180" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="30" fill="#7a6855">Collect points</text>
 
   <g transform="translate(1562.5 720)">
       <path d="M-84 -38 H84 L72 92 H-72 Z" fill="none" stroke="#7a6855" stroke-width="11" stroke-linejoin="round"/>
