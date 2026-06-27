@@ -3,23 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dene / Kefera</title>
+    <title>Dene / KEFÉRA</title>
     <script>
       (function () {
         var path = String(window.location && window.location.pathname ? window.location.pathname : '').toLowerCase();
         if (!path || path === '/') {
-          document.title = 'Dene / Kefera';
+          document.title = 'Dene / KEFÉRA';
           return;
         }
         if (path.indexOf('/kefera') === 0) {
-          document.title = 'Kefera CRM';
+          document.title = 'KEFÉRA CRM';
           return;
         }
         if (path.indexOf('/dene') === 0 || path.indexOf('/admin') === 0 || path.indexOf('/liff') === 0) {
           document.title = 'Dene CRM';
           return;
         }
-        document.title = 'Dene / Kefera';
+        document.title = 'Dene / KEFÉRA';
       })();
     </script>
   </head>

@@ -29,9 +29,9 @@ const DENE: CompanyConfig = {
 const KEFERA: CompanyConfig = {
   code: 'KEFERA',
   id: 2,
-  label: 'Kefera',
+  label: 'KEFÉRA',
   liffId: readEnv('VITE_LIFF_ID_KEFERA'),
-  lineOaName: 'Kefera Line OA',
+  lineOaName: 'KEFÉRA Line OA',
   accent: '#8b5e3c',
   softAccent: '#f0dccb',
 };
@@ -115,7 +115,7 @@ export function getCompanyDocumentTitle(pathname = typeof window !== 'undefined'
   const normalizedPath = String(pathname || '').trim().toLowerCase();
 
   if (!normalizedPath || normalizedPath === '/') {
-    return 'Dene / Kefera';
+    return 'Dene / KEFÉRA';
   }
 
   if (/^\/(admin|liff)(\/|$)/i.test(normalizedPath)) {
@@ -124,8 +124,8 @@ export function getCompanyDocumentTitle(pathname = typeof window !== 'undefined'
 
   if (isCompanyPath(normalizedPath)) {
     const company = getCompanyFromPathname(normalizedPath);
-    return company.code === 'KEFERA' ? 'Kefera CRM' : 'Dene CRM';
+    return company.code === 'KEFERA' ? 'KEFÉRA CRM' : 'Dene CRM';
   }
 
-  return 'Dene / Kefera';
+  return 'Dene / KEFÉRA';
 }
