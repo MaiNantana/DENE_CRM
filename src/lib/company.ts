@@ -94,20 +94,22 @@ export function isCompanyPath(pathname: string) {
 export function getCompanyThemeStyle(company = getCurrentCompany()): CSSProperties {
   if (company.code !== 'KEFERA') return {};
 
+  // KEFÉRA palette: ivory background, taupe boxes, muted-brown / charcoal text. The japandi-* tokens
+  // are remapped so existing components inherit the brand colors without per-page edits.
   return {
-    backgroundColor: '#f8efe6',
-    backgroundImage: 'radial-gradient(circle at top left, rgba(243, 215, 191, 0.95), transparent 35%), linear-gradient(135deg, #fff8f2 0%, #f6e4d4 54%, #edd0b8 100%)',
-    '--color-japandi-50': '#fff9f4',
-    '--color-japandi-100': '#f8eadf',
-    '--color-japandi-200': '#edd7c4',
-    '--color-japandi-300': '#e0c0a3',
-    '--color-japandi-400': '#c99267',
-    '--color-japandi-500': '#a66f46',
-    '--color-japandi-600': '#8b5e3c',
-    '--color-japandi-700': '#70492f',
-    '--color-japandi-800': '#8b5e3c',
-    '--color-japandi-900': '#4a2d1e',
-    '--color-japandi-sage': '#d8b28d',
+    backgroundColor: '#eeebdf', // ivory
+    '--color-japandi-50': '#f6f4ee',
+    '--color-japandi-100': '#eeebdf', // ivory
+    '--color-japandi-200': '#e3ddd2',
+    '--color-japandi-300': '#cfc6b8',
+    '--color-japandi-400': '#a39284', // taupe
+    '--color-japandi-450': '#a39284', // taupe
+    '--color-japandi-500': '#8c7c6d',
+    '--color-japandi-600': '#7a6855', // muted brown
+    '--color-japandi-700': '#5f5043',
+    '--color-japandi-800': '#7a6855', // muted brown (headers / primary)
+    '--color-japandi-900': '#1a1a1a', // charcoal
+    '--color-japandi-sage': '#cfc6b8',
   } as CSSProperties;
 }
 

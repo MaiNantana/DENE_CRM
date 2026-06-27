@@ -1,9 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  
+  /* Body = Helvetica Neue (Apple) → Inter fallback; Headings = Cormorant Garamond */
+  --font-sans: "Helvetica Neue", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+
+  /* KEFÉRA brand palette */
+  --color-kefera-taupe: #a39284;      /* buttons / boxes */
+  --color-kefera-charcoal: #1a1a1a;   /* primary text */
+  --color-kefera-white: #eae4dc;      /* text on dark */
+  --color-kefera-ivory: #eeebdf;      /* background */
+  --color-kefera-brown: #7a6855;      /* muted text */
+
   --color-japandi-50: #fcfbf9;
   --color-japandi-100: #f5f2eb;
   --color-japandi-200: #e7e0d8; /* Light cream */

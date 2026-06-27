@@ -24,7 +24,7 @@ export default function LiffLayout({ title, subtitle, onBack, children, noPad }:
           </button>
         )}
         <div>
-          <h1 className="font-bold text-lg leading-tight">{title}</h1>
+          <h1 className="font-serif font-semibold text-xl leading-tight tracking-wide">{title}</h1>
           {subtitle && <p className="text-japandi-300 text-xs">{subtitle}</p>}
         </div>
       </div>
