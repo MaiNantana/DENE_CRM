@@ -96,14 +96,16 @@ function buildActionUrl(route) {
 }
 
 // ─── Rich Menu JSON ───────────────────────────────────
-// 2500 × 1686. KEFÉRA = 4 columns (Membership / Collect Points / Shopping / Social Media), in English.
+// 2500 × 1686. KEFÉRA = 2×2 grid (header 250px + 2 rows × 2 cols).
 // DENE keeps its original 3-column layout (Register / Slip / Member).
-// Only Membership + Upload Slip are tappable for now. Shopping & Social Media tiles are shown in the
-// image but have NO area, so tapping them does nothing until real links are wired up (then add areas
-// here using SHOPPING_URL / SOCIAL_URL).
+// Only Membership + Upload Slip are tappable for now; Shopping & Social tiles are decorative.
+const KEFERA_HEADER_H = 250;
+const KEFERA_ROW_H    = (1686 - KEFERA_HEADER_H) / 2; // 718
+const KEFERA_COL_W    = 1250;
 const KEFERA_AREAS = [
-  { bounds: { x: 0,    y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Membership',  uri: buildActionUrl('/member') } },
-  { bounds: { x: 625,  y: 0, width: 625, height: 1686 }, action: { type: 'uri', label: 'Upload Slip', uri: buildActionUrl('/slip') } },
+  { bounds: { x: 0,              y: KEFERA_HEADER_H, width: KEFERA_COL_W, height: KEFERA_ROW_H }, action: { type: 'uri', label: 'Membership',  uri: buildActionUrl('/member') } },
+  { bounds: { x: KEFERA_COL_W,  y: KEFERA_HEADER_H, width: KEFERA_COL_W, height: KEFERA_ROW_H }, action: { type: 'uri', label: 'Upload Slip', uri: buildActionUrl('/slip') } },
+  // Row 2: no areas yet — add SHOPPING_URL / SOCIAL_URL here when ready
 ];
 const DENE_AREAS = [
   { bounds: { x: 0,    y: 0, width: 833, height: 1686 }, action: { type: 'uri', label: 'สมัครสมาชิก', uri: buildActionUrl('/register') } },
@@ -264,66 +266,74 @@ function buildRichMenuSvg() {
 </svg>`;
 }
 
-// KEFÉRA rich menu — elegant light layout (ivory bg, taupe/brown line icons), 4 columns, English.
+// KEFÉRA rich menu — elegant light layout (ivory bg, taupe/brown line icons), 2×2 grid, English.
 function buildKeferaRichMenuSvg() {
-  const BG = '#eeebdf';        // ivory
-  const CHARCOAL = '#1a1a1a';  // titles
-  const TAUPE = '#a39284';     // dividers / secondary
-  const BROWN = '#7a6855';     // icons / subtitles
-  const SERIF = "Cormorant Garamond, Georgia, 'Times New Roman', serif";
-  const SANS = "'Helvetica Neue', Arial, sans-serif";
+  const BG      = '#eeebdf';
+  const CHARCOAL = '#1a1a1a';
+  const TAUPE   = '#a39284';
+  const BROWN   = '#7a6855';
+  const SERIF   = "Cormorant Garamond, Georgia, 'Times New Roman', serif";
+  const SANS    = "'Helvetica Neue', Arial, sans-serif";
 
-  const columns = [
-    { cx: 312.5,  label: 'MEMBERSHIP',   sub: 'Card &amp; points' },
-    { cx: 937.5,  label: 'UPLOAD SLIP',  sub: 'Collect points' },
-    { cx: 1562.5, label: 'SHOPPING',     sub: 'Shop our store' },
-    { cx: 2187.5, label: 'SOCIAL MEDIA', sub: 'Follow us' },
+  const H  = KEFERA_HEADER_H; // 250
+  const RH = KEFERA_ROW_H;    // 718
+  const CW = KEFERA_COL_W;    // 1250
+
+  // Cell centres (cx, cy)
+  const cells = [
+    { cx: CW / 2,       cy: H + RH / 2,       label: 'MEMBERSHIP',   sub: 'Card &amp; points', i: 0 },
+    { cx: CW + CW / 2,  cy: H + RH / 2,       label: 'UPLOAD SLIP',  sub: 'Collect points',    i: 1 },
+    { cx: CW / 2,       cy: H + RH + RH / 2,  label: 'SHOPPING',     sub: 'Shop our store',    i: 2 },
+    { cx: CW + CW / 2,  cy: H + RH + RH / 2,  label: 'SOCIAL MEDIA', sub: 'Follow us',         i: 3 },
   ];
 
-  // Line icons drawn around their own origin (0,0); placed at each column center, y = 720.
+  // Line icons, origin (0,0); wrapped with scale(1.5) at render time.
   const icon = (i) => {
     if (i === 0) return `
-      <rect x="-115" y="-72" width="230" height="150" rx="22" fill="none" stroke="${BROWN}" stroke-width="11"/>
-      <line x1="-115" y1="-30" x2="115" y2="-30" stroke="${BROWN}" stroke-width="11"/>
-      <line x1="-82" y1="26" x2="22" y2="26" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>
-      <circle cx="74" cy="30" r="24" fill="none" stroke="${TAUPE}" stroke-width="11"/>`;
+        <rect x="-115" y="-72" width="230" height="150" rx="22" fill="none" stroke="${BROWN}" stroke-width="11"/>
+        <line x1="-115" y1="-30" x2="115" y2="-30" stroke="${BROWN}" stroke-width="11"/>
+        <line x1="-82" y1="26" x2="22" y2="26" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>
+        <circle cx="74" cy="30" r="24" fill="none" stroke="${TAUPE}" stroke-width="11"/>`;
     if (i === 1) return `
-      <rect x="-58" y="-36" width="116" height="150" rx="14" fill="none" stroke="${BROWN}" stroke-width="11"/>
-      <line x1="-28" y1="20" x2="28" y2="20" stroke="${TAUPE}" stroke-width="10" stroke-linecap="round"/>
-      <line x1="-28" y1="58" x2="6" y2="58" stroke="${TAUPE}" stroke-width="10" stroke-linecap="round"/>
-      <path d="M0 -54 V-114 M-30 -86 L0 -116 L30 -86" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>`;
+        <rect x="-58" y="-36" width="116" height="150" rx="14" fill="none" stroke="${BROWN}" stroke-width="11"/>
+        <line x1="-28" y1="20" x2="28" y2="20" stroke="${TAUPE}" stroke-width="10" stroke-linecap="round"/>
+        <line x1="-28" y1="58" x2="6" y2="58" stroke="${TAUPE}" stroke-width="10" stroke-linecap="round"/>
+        <path d="M0 -54 V-114 M-30 -86 L0 -116 L30 -86" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>`;
     if (i === 2) return `
-      <path d="M-84 -38 H84 L72 92 H-72 Z" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linejoin="round"/>
-      <path d="M-42 -38 V-62 A42 42 0 0 1 42 -62 V-38" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linecap="round"/>`;
+        <path d="M-84 -38 H84 L72 92 H-72 Z" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linejoin="round"/>
+        <path d="M-42 -38 V-62 A42 42 0 0 1 42 -62 V-38" fill="none" stroke="${BROWN}" stroke-width="11" stroke-linecap="round"/>`;
     return `
-      <circle cx="-62" cy="0" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
-      <circle cx="56" cy="-56" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
-      <circle cx="56" cy="56" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
-      <line x1="-39" y1="-13" x2="34" y2="-46" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>
-      <line x1="-39" y1="13" x2="34" y2="46" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>`;
+        <circle cx="-62" cy="0" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
+        <circle cx="56" cy="-56" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
+        <circle cx="56" cy="56" r="27" fill="none" stroke="${BROWN}" stroke-width="11"/>
+        <line x1="-39" y1="-13" x2="34" y2="-46" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>
+        <line x1="-39" y1="13" x2="34" y2="46" stroke="${TAUPE}" stroke-width="11" stroke-linecap="round"/>`;
   };
 
-  const dividers = [625, 1250, 1875]
-    .map(x => `<line x1="${x}" y1="430" x2="${x}" y2="1560" stroke="${TAUPE}" stroke-opacity="0.5" stroke-width="3"/>`)
-    .join('\n  ');
-
-  const cells = columns.map((c, i) => `
-  <g transform="translate(${c.cx} 720)">${icon(i)}</g>
-  <text x="${c.cx}" y="1110" text-anchor="middle" font-family="${SANS}" font-weight="600" font-size="46" letter-spacing="6" fill="${CHARCOAL}">${c.label}</text>
-  <text x="${c.cx}" y="1180" text-anchor="middle" font-family="${SANS}" font-size="30" fill="${BROWN}">${c.sub}</text>`).join('\n');
+  const cellsSvg = cells.map(c => `
+  <g transform="translate(${c.cx} ${c.cy})">
+    <g transform="translate(0,-95) scale(1.5)">${icon(c.i)}</g>
+    <text y="78" text-anchor="middle" font-family="${SANS}" font-weight="600" font-size="66" letter-spacing="6" fill="${CHARCOAL}">${c.label}</text>
+    <text y="140" text-anchor="middle" font-family="${SANS}" font-size="44" fill="${BROWN}">${c.sub}</text>
+  </g>`).join('');
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="2500" height="1686" viewBox="0 0 2500 1686">
   <rect width="2500" height="1686" fill="${BG}"/>
-  <circle cx="220" cy="260" r="200" fill="${TAUPE}" opacity="0.06"/>
-  <circle cx="2300" cy="1440" r="240" fill="${TAUPE}" opacity="0.05"/>
+  <circle cx="200" cy="125" r="150" fill="${TAUPE}" opacity="0.06"/>
+  <circle cx="2320" cy="1580" r="200" fill="${TAUPE}" opacity="0.05"/>
 
-  <text x="1250" y="205" text-anchor="middle" font-family="${SERIF}" font-weight="500" font-size="92" letter-spacing="26" fill="${CHARCOAL}">KEFÉRA</text>
-  <text x="1250" y="270" text-anchor="middle" font-family="${SANS}" font-weight="600" font-size="30" letter-spacing="14" fill="${BROWN}">MEMBER PRIVILEGES</text>
-  <line x1="1010" y1="320" x2="1490" y2="320" stroke="${TAUPE}" stroke-opacity="0.6" stroke-width="3"/>
+  <!-- Header -->
+  <text x="1250" y="162" text-anchor="middle" font-family="${SERIF}" font-weight="500" font-size="110" letter-spacing="26" fill="${CHARCOAL}">KEFÉRA</text>
+  <text x="1250" y="224" text-anchor="middle" font-family="${SANS}" font-weight="600" font-size="36" letter-spacing="14" fill="${BROWN}">MEMBER PRIVILEGES</text>
+  <line x1="940" y1="244" x2="1560" y2="244" stroke="${TAUPE}" stroke-opacity="0.55" stroke-width="2"/>
 
-  ${dividers}
-${cells}
+  <!-- Grid lines -->
+  <line x1="0"    y1="${H}"      x2="2500" y2="${H}"      stroke="${TAUPE}" stroke-opacity="0.45" stroke-width="3"/>
+  <line x1="${CW}" y1="${H}"     x2="${CW}" y2="1686"     stroke="${TAUPE}" stroke-opacity="0.45" stroke-width="3"/>
+  <line x1="0"    y1="${H + RH}" x2="2500" y2="${H + RH}" stroke="${TAUPE}" stroke-opacity="0.45" stroke-width="3"/>
+
+${cellsSvg}
 </svg>`;
 }
 
