@@ -6,6 +6,7 @@ import { publicApi } from '../../api';
 import { DEMO_LINE_ID } from '../../constants';
 import { getContrastColor } from '../../utils';
 import { useLineIdentity } from '../../hooks/useLineIdentity';
+import { resolveLineUserId } from '../../lib/lineLiff';
 import { buildCompanyPath, getCurrentCompany } from '../../lib/company';
 import { getTierBahtPerPoint, getTierDiscountPercent, normalizeTierBenefits } from '../../lib/tiers';
 import type { PointHistory } from '../../types';
@@ -48,22 +49,35 @@ export default function LiffMember() {
 
   useEffect(() => {
     if (identityLoading) return;
-    if (!lineId) {
-      setError(identityError || 'LINE ID not found');
-      setLoading(false);
-      return;
-    }
 
+    let active = true;
     setLoading(true);
     setError('');
     (async () => {
+      // LIFF can expose the LINE identity a moment after the hook's first attempt (especially when
+      // opened from the rich menu). Retry a few times before giving up, like the Register flow does.
+      let effectiveLineId = lineId.trim();
+      for (let i = 0; i < 5 && !effectiveLineId && active; i++) {
+        try {
+          const resolved = await resolveLineUserId();
+          effectiveLineId = resolved.lineId.trim();
+        } catch { /* keep retrying */ }
+        if (!effectiveLineId) await new Promise(r => setTimeout(r, 600));
+      }
+      if (!active) return;
+      if (!effectiveLineId) {
+        setError(identityError || 'LINE ID not found');
+        setLoading(false);
+        return;
+      }
+
       try {
         const [users, tData, pData] = await Promise.all([
-          publicApi.getUsers(lineId, true),
+          publicApi.getUsers(effectiveLineId, true),
           publicApi.getTiers(),
           publicApi.getPromotions('active'),
         ]);
-        const found = users.find((u: any) => u.line_id === lineId);
+        const found = users.find((u: any) => u.line_id === effectiveLineId);
         if (!found) { setError('No membership found. Please register first.'); setLoading(false); return; }
         setUser(found);
         setTiers(tData);
@@ -72,6 +86,8 @@ export default function LiffMember() {
       } catch { setError('Something went wrong. Please try again.'); }
       finally { setLoading(false); }
     })();
+
+    return () => { active = false; };
   }, [lineId, identityLoading, identityError]);
 
   useEffect(() => {
