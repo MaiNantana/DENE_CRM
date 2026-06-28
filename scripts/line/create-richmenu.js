@@ -312,9 +312,9 @@ function buildKeferaRichMenuSvg() {
 
   const cellsSvg = cells.map(c => `
   <g transform="translate(${c.cx} ${c.cy})">
-    <g transform="translate(0,-95) scale(1.5)">${icon(c.i)}</g>
-    <text y="78" text-anchor="middle" font-family="${SANS}" font-weight="600" font-size="66" letter-spacing="6" fill="${CHARCOAL}">${c.label}</text>
-    <text y="140" text-anchor="middle" font-family="${SANS}" font-size="44" fill="${BROWN}">${c.sub}</text>
+    <g transform="translate(0,-115) scale(1.5)">${icon(c.i)}</g>
+    <text y="130" text-anchor="middle" font-family="${SANS}" font-weight="600" font-size="66" letter-spacing="6" fill="${CHARCOAL}">${c.label}</text>
+    <text y="195" text-anchor="middle" font-family="${SANS}" font-size="44" fill="${BROWN}">${c.sub}</text>
   </g>`).join('');
 
   return `
