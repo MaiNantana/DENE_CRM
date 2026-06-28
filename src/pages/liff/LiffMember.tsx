@@ -265,7 +265,6 @@ export default function LiffMember() {
             <div>
               <p className="text-[10px] font-bold opacity-70 tracking-[0.2em] uppercase">{user.tier} MEMBER</p>
               <p className="font-bold text-xl mt-1">{user.name}</p>
-              <p className="text-xs opacity-60 mt-0.5">{user.line_id}</p>
               {user.tier_expires_at && (
                 <p className="text-[10px] opacity-60 mt-1">
                   Tier expires: {formatDisplayDate(user.tier_expires_at)}
