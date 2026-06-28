@@ -93,12 +93,6 @@ export default function LiffRegister() {
           </div>
         )}
 
-        {!lineLoading && lineId && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            LINE ID detected: <span className="font-mono font-bold">{lineId}</span>
-          </div>
-        )}
-
         {lineError && !lineLoading && !lineId && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
             {lineError}
