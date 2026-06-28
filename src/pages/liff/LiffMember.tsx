@@ -66,8 +66,7 @@ export default function LiffMember() {
       }
       if (!active) return;
       if (!effectiveLineId) {
-        setError(identityError || 'LINE ID not found');
-        setLoading(false);
+        window.location.replace(buildCompanyPath('/liff/register', company));
         return;
       }
 
@@ -78,7 +77,10 @@ export default function LiffMember() {
           publicApi.getPromotions('active'),
         ]);
         const found = users.find((u: any) => u.line_id === effectiveLineId);
-        if (!found) { setError('No membership found. Please register first.'); setLoading(false); return; }
+        if (!found) {
+          window.location.replace(buildCompanyPath(`/liff/register?lineId=${encodeURIComponent(effectiveLineId)}`, company));
+          return;
+        }
         setUser(found);
         setTiers(tData);
         setPromos(pData);
