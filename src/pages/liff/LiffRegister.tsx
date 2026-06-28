@@ -3,7 +3,7 @@ import { UserPlus, CheckCircle, Loader2 } from 'lucide-react';
 import LiffLayout from './LiffLayout';
 import { publicApi } from '../../api';
 import { useLineIdentity } from '../../hooks/useLineIdentity';
-import { resolveLineUserId } from '../../lib/lineLiff';
+import { resolveLineUserId, getLinePictureUrl } from '../../lib/lineLiff';
 import { buildCompanyPath, getCurrentCompany } from '../../lib/company';
 
 type Step = 'form' | 'success';
@@ -30,6 +30,7 @@ export default function LiffRegister() {
     if (!effectiveLineId) { setError(lineError || 'Please open this page from LINE to detect your LINE ID automatically'); return; }
     if (!form.name.trim())   { setError('Please enter your full name'); return; }
     setLoading(true); setError('');
+    const pictureUrl = await getLinePictureUrl().catch(() => '');
     let memberRedirect = '';
     try {
       const user = await publicApi.createUser({
@@ -38,6 +39,7 @@ export default function LiffRegister() {
         phone:    form.phone    || undefined,
         birthday: form.birthday || undefined,
         email:    form.email    || undefined,
+        avatar:   pictureUrl   || undefined,
       });
       setCreatedUser(user);
       setStep('success');

@@ -167,7 +167,7 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
         email: u.email,
         birthday: u.birthday,
         tierExpiresAt: u.tier_expires_at,
-        avatar: u.avatar || `https://i.pravatar.cc/150?u=${u.id}`,
+        avatar: u.avatar || null,
         tier: u.tier,
         points: u.points,
         joinedAt: u.joined_at,
@@ -1282,11 +1282,16 @@ export default function AdminDashboard({ tiers, setTiers, role }: AdminDashboard
                       <tr key={user.id} className={`transition-colors ${user.isActive ? 'hover:bg-japandi-50/50' : 'bg-japandi-50/60 opacity-60'}`}>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" />
+                            {user.avatar ? (
+                              <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-japandi-200 border-2 border-white shadow-sm flex items-center justify-center text-japandi-600 font-bold text-sm">
+                                {user.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
                             <div>
                               <div className="font-bold text-sm">{user.name}</div>
                               <div className="text-japandi-500 text-[10px]">รหัสลูกค้า: {user.customerCode || '—'}</div>
-                              <div className="text-japandi-500 text-[10px]">Line ID: {user.lineId}</div>
                             </div>
                           </div>
                         </td>

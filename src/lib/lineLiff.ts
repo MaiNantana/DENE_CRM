@@ -68,6 +68,20 @@ export async function getLineDisplayName() {
   }
 }
 
+// Best-effort LINE profile picture URL. Returns '' if unavailable.
+export async function getLinePictureUrl() {
+  const liffId = getActiveLiffId();
+  if (!liffId) return '';
+  try {
+    await ensureLiffInitialized(liffId);
+    if (!liff.isLoggedIn() && !isLiffBrowser()) return '';
+    const profile = await liff.getProfile();
+    return profile.pictureUrl?.trim() || '';
+  } catch {
+    return '';
+  }
+}
+
 export async function initializeLiff() {
   const liffId = getActiveLiffId();
   if (!liffId) return;
