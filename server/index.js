@@ -77,10 +77,11 @@ app.use('/api/public/payment-accounts', allowMethods(['GET']), paymentAccountsRo
 // Protected admin endpoints
 app.use('/api/admin/dashboard', requireAuth, allowMethods(['GET']), dashboardRouter);
 app.use('/api/admin/users', requireAuth, requireMethodRoles({
-  GET:   ['admin', 'manager', 'user'],
-  POST:  ['admin', 'manager'],
-  PUT:   ['admin', 'manager'],
-  PATCH: ['admin', 'manager'],
+  GET:    ['admin', 'manager', 'user'],
+  POST:   ['admin', 'manager'],
+  PUT:    ['admin', 'manager'],
+  PATCH:  ['admin', 'manager'],
+  DELETE: ['admin'],
 }), usersRouter);
 app.use('/api/admin/promotions', requireAuth, requireMethodRoles({
   GET:   ['admin', 'manager', 'user'],
